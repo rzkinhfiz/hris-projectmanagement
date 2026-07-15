@@ -15,11 +15,14 @@ export function Sidebar() {
   return (
     <aside className="w-64 bg-[var(--color-sidebar)] text-slate-300 flex flex-col h-full rounded-l-[2rem] overflow-hidden py-6 px-4">
       {/* Brand */}
-      <div className="flex items-center gap-3 px-2 mb-10">
-        <div className="w-8 h-8 rounded-full bg-[var(--color-brand-orange)] flex items-center justify-center">
-          <div className="w-4 h-4 bg-[var(--color-sidebar)] rounded-full border-2 border-[var(--color-brand-orange)]" />
+      <div className="flex items-center gap-3 px-2 mb-10 pt-4">
+        {/* Abstract logo mark */}
+        <div className="relative w-8 h-8 rounded-full bg-[var(--color-brand-orange)] flex items-center justify-center shrink-0">
+          <div className="w-3 h-3 rounded-full bg-[var(--color-sidebar)]"></div>
         </div>
-        <span className="text-xl font-semibold text-white tracking-wide">Promage</span>
+        <span className="text-white text-xl font-bold tracking-wide leading-tight">
+          Project Management
+        </span>
       </div>
 
       {/* Primary Action Button */}
