@@ -116,7 +116,8 @@ Panduan ini mendefinisikan struktur tabel Supabase (PostgreSQL) untuk sistem PMO
 ### Contoh fungsi helper
 
 ```sql
-create function public.is_project_member(project_id uuid) returns boolean language sql stable as $$
+create function public.is_project_member(project_id uuid) returns boolean 
+language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from project_team_members
     where project_id = $1

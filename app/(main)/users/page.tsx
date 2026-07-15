@@ -17,9 +17,9 @@ export default function UsersPage() {
   }
 
   // RBAC validation: Only PMO can manage users
-  if (profile?.role !== "pmo") {
+  if (profile?.role !== "pmo" && profile?.role !== "administrator") {
     return (
-      <div className="h-full min-h-[500px] flex flex-col items-center justify-center">
+      <div className="flex h-full items-center justify-center">
         <div className="bg-rose-50 text-rose-600 p-8 rounded-[2rem] max-w-md text-center border border-rose-100 shadow-sm">
           <Shield size={48} className="mx-auto mb-4 text-rose-400" />
           <h2 className="text-xl font-bold mb-2">Access Denied</h2>

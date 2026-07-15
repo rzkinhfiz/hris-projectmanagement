@@ -67,20 +67,10 @@ export function OverviewCards() {
                 <h3 className="text-2xl font-bold text-slate-800">{card.value}</h3>
                 {card.suffix && <span className="text-sm font-semibold text-slate-500">{card.suffix}</span>}
               </div>
-              <div className={`flex items-center gap-1 text-[10px] font-semibold ${card.isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {card.isPositive ? <ArrowUpRight size={12} strokeWidth={3} /> : <ArrowDownRight size={12} strokeWidth={3} />}
-                <span>{card.trend.replace(/^[+-][0-9]+%\s/, '')}</span>
-                <span className="ml-[-4px]">{card.trend.split(' ')[0]}</span>
-                {/* 
-                  To match exact look: "↗ 12% increase from last month"
-                */}
-                <span className="hidden">fallback text for styling</span>
-              </div>
-              {/* Better layout for the trend text matching the image */}
-              <div className={`mt-[-14px] flex items-center gap-1 text-[10px] font-semibold ${card.isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                 {card.isPositive ? <ArrowUpRight size={12} strokeWidth={3} /> : <ArrowDownRight size={12} strokeWidth={3} />}
-                 <span>{card.trend.split(' ')[0]}</span>
-                 <span className="text-slate-400 font-medium">{card.trend.split(' ').slice(1).join(' ')}</span>
+              <div className={`flex items-center gap-1 text-xs font-medium ${card.isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
+                 {card.isPositive ? <ArrowUpRight size={14} strokeWidth={2.5} /> : <ArrowDownRight size={14} strokeWidth={2.5} />}
+                 <span className="font-semibold">{card.trend.split(' ')[0]}</span>
+                 <span className="text-slate-500">{card.trend.split(' ').slice(1).join(' ')}</span>
               </div>
             </div>
           </div>

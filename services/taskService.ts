@@ -44,6 +44,36 @@ export async function getTasksByProject(projectId: string): Promise<{ data: Task
   return { data: tasks, error: null };
 }
 
+export async function getAllTasks(): Promise<{ data: TaskWithWorkstream[]; error: PostgrestError | null }> {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return { data: [], error: null };
+  }
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*, workstreams(*)")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    return { data: [], error };
+  }
+
+  const tasks = (data as TaskWithWorkstreamRelation[] | null)?.map((item) => {
+    const workstream = Array.isArray(item.workstreams)
+      ? item.workstreams[0] ?? null
+      : item.workstreams ?? null;
+
+    return {
+      ...item,
+      workstream,
+    } satisfies TaskWithWorkstream;
+  }) ?? [];
+
+  return { data: tasks, error: null };
+}
+
 export async function updateTaskProgress(
   taskId: string,
   progress: number,

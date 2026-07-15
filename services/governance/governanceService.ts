@@ -95,7 +95,7 @@ export async function assessProjectHealth(projectId: string): Promise<Governance
     };
   }
 
-  const scheduleResult = compareSchedule(project.end_date, project.end_date);
+  const scheduleResult = compareSchedule(project.end_date ?? null, project.end_date ?? null);
   const costResult = compareCost(1000, 1100);
   const progressResult = compareProgress(50, tasks.reduce((sum, task) => sum + task.progress, 0) / Math.max(tasks.length, 1));
 

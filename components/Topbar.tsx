@@ -47,14 +47,29 @@ export function Topbar() {
   }, []);
 
   // Format page title from pathname
-  const pageTitle = pathname === "/dashboard" 
-    ? "Dashboard" 
-    : pathname.split('/').filter(Boolean).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" / ");
+  const formatPageTitle = (path: string) => {
+    if (path === "/dashboard") return "Dashboard";
+    
+    // UUID regex pattern
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    const parts = path.split('/').filter(Boolean).map(p => {
+      if (uuidRegex.test(p)) return "Detail";
+      return p.charAt(0).toUpperCase() + p.slice(1);
+    });
+    
+    return parts.join(" / ");
+  };
+
+  const pageTitle = formatPageTitle(pathname);
 
   return (
     <header className="flex items-center justify-between py-6 px-8 bg-[var(--color-canvas)] rounded-tr-[2rem]">
       <div className="flex items-center gap-4">
-        <button className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-500 shadow-sm hover:bg-slate-50 transition">
+        <button 
+          onClick={() => router.back()}
+          className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-slate-500 shadow-sm hover:bg-slate-50 transition"
+        >
           <ChevronLeft size={18} />
         </button>
         <h1 className="text-2xl font-semibold text-slate-900">{pageTitle || "Overview"}</h1>

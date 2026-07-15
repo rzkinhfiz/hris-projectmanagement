@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, 
   Briefcase, 
@@ -12,6 +15,20 @@ import {
 } from "lucide-react";
 
 export function Sidebar() {
+  const pathname = usePathname();
+
+  const getLinkClass = (path: string) => {
+    // If the path is dashboard, we only want exact matches, otherwise check startsWith
+    const isActive = path === "/dashboard" 
+      ? pathname === "/dashboard" 
+      : pathname.startsWith(path);
+      
+    if (isActive) {
+      return "flex items-center gap-3 bg-white text-[var(--color-brand-orange)] px-4 py-3 rounded-full font-medium shadow-sm transition";
+    }
+    return "flex items-center gap-3 px-4 py-3 rounded-full hover:bg-slate-800 text-slate-300 transition font-medium";
+  };
+
   return (
     <aside className="w-64 bg-[var(--color-sidebar)] text-slate-300 flex flex-col h-full rounded-l-[2rem] overflow-hidden py-6 px-4">
       {/* Brand */}
@@ -26,75 +43,44 @@ export function Sidebar() {
       </div>
 
       {/* Primary Action Button */}
-      <button className="bg-white text-slate-900 rounded-full py-3 px-4 flex items-center gap-2 mb-10 hover:bg-slate-100 transition shadow-sm font-medium">
+      <Link href="/projects/create" className="bg-white text-slate-900 rounded-full py-3 px-4 flex items-center gap-2 mb-10 hover:bg-slate-100 transition shadow-sm font-medium">
         <div className="bg-[var(--color-brand-orange)] text-white rounded-full p-1">
           <Plus size={16} strokeWidth={3} />
         </div>
         Create new project
-      </button>
+      </Link>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1">
-        <Link 
-          href="/dashboard" 
-          className="flex items-center gap-3 bg-white text-[var(--color-brand-orange)] px-4 py-3 rounded-full font-medium"
-        >
+      <nav className="flex-1 space-y-2">
+        <Link href="/dashboard" className={getLinkClass("/dashboard")}>
           <LayoutDashboard size={20} />
           Dashboard
         </Link>
-        <Link 
-          href="/projects" 
-          className="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-slate-800 transition"
-        >
+        <Link href="/projects" className={getLinkClass("/projects")}>
           <Briefcase size={20} />
           Projects
         </Link>
-        <Link 
-          href="/tasks" 
-          className="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-slate-800 transition"
-        >
+        <Link href="/tasks" className={getLinkClass("/tasks")}>
           <CheckSquare size={20} />
           Tasks
         </Link>
-        <Link 
-          href="/dashboard" 
-          className="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-slate-800 transition"
-        >
-          <LayoutDashboard size={20} />
-          Dashboard
-        </Link>
-        <Link 
-          href="/time-log" 
-          className="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-slate-800 transition"
-        >
+        <Link href="/time-log" className={getLinkClass("/time-log")}>
           <Clock size={20} />
           Time log
         </Link>
-        <Link 
-          href="/resources" 
-          className="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-slate-800 transition"
-        >
+        <Link href="/resources" className={getLinkClass("/resources")}>
           <Users size={20} />
           Resource mgnt
         </Link>
-        <Link 
-          href="/users" 
-          className="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-slate-800 transition"
-        >
+        <Link href="/users" className={getLinkClass("/users")}>
           <Users size={20} />
           Users
         </Link>
-        <Link 
-          href="/templates" 
-          className="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-slate-800 transition"
-        >
+        <Link href="/templates" className={getLinkClass("/templates")}>
           <FileText size={20} />
           Project template
         </Link>
-        <Link 
-          href="/settings" 
-          className="flex items-center gap-3 px-4 py-3 rounded-full hover:bg-slate-800 transition"
-        >
+        <Link href="/settings" className={getLinkClass("/settings")}>
           <Settings size={20} />
           Menu settings
         </Link>

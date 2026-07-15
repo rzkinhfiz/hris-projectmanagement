@@ -7,6 +7,8 @@ create or replace function public.is_project_member(project_id uuid)
 returns boolean
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select case
     when to_regclass('public.project_team_members') is null then false
@@ -24,6 +26,8 @@ create or replace function public.is_pmo()
 returns boolean
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select exists (
     select 1
@@ -38,6 +42,8 @@ create or replace function public.is_project_manager(project_id uuid)
 returns boolean
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select case
     when to_regclass('public.projects') is null then false

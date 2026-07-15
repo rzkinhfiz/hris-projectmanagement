@@ -2,14 +2,21 @@
 
 import { ReactNode } from "react";
 
-type Role = "project_team" | "project_manager" | "pmo";
+type Role = "project_team" | "project_manager" | "pmo" | "administrator" | null;
 
 type RoleGuardProps = {
   currentRole: Role | string;
-  allowed: Role[];
+  allowed: string[];
   children: ReactNode;
 };
 
 export function RoleGuard({ currentRole, allowed, children }: RoleGuardProps) {
-  return allowed.includes(currentRole as Role) ? <>{children}</> : null;
+  let isAllowed = currentRole ? allowed.includes(currentRole as string) : false;
+  
+  // Administrator auto-inherits PMO access unless restricted
+  if (currentRole === "administrator" && allowed.includes("pmo")) {
+    isAllowed = true;
+  }
+
+  return isAllowed ? <>{children}</> : null;
 }

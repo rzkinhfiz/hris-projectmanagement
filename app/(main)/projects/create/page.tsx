@@ -27,8 +27,8 @@ export default function CreateProjectPage() {
         return;
       }
       
-      if (profile?.role !== "pmo") {
-        setError("Access Denied: Only PMO role can create new projects.");
+      if (profile?.role !== "pmo" && profile?.role !== "administrator") {
+        setError("Access Denied: Only PMO or Administrator role can create new projects.");
         setIsLoading(false);
         return;
       }
@@ -52,17 +52,24 @@ export default function CreateProjectPage() {
     setIsSubmitting(true);
     setError(null);
 
-    // Format for DB
+    // Format for DB: convert empty strings to undefined for UUIDs and optional fields
     const newProject = {
       ...data,
-      pmo_id: profile?.id || null, // The PMO creating the project
+      pmo_id: profile?.id || undefined, // The PMO creating the project
+      pm_id: data.pm_id === "" ? undefined : data.pm_id,
+      sales_order_no: data.sales_order_no === "" ? undefined : data.sales_order_no,
+      project_class: data.project_class === "" ? undefined : data.project_class,
+      internal_drive_url: data.internal_drive_url === "" ? undefined : data.internal_drive_url,
+      external_drive_url: data.external_drive_url === "" ? undefined : data.external_drive_url,
+      start_date: data.start_date === "" ? undefined : data.start_date,
+      end_date: data.end_date === "" ? undefined : data.end_date,
       status: data.status,
-      start_date: data.start_date || null,
-      end_date: data.end_date || null,
-      pm_id: data.pm_id || null,
     };
 
-    const { error: submitError } = await createProject(newProject);
+    const { error: submitError } = await createProject(newProject, {
+      performerId: profile?.id || "system",
+      performerRole: profile?.role || "user",
+    });
     
     setIsSubmitting(false);
 
@@ -82,7 +89,7 @@ export default function CreateProjectPage() {
     );
   }
 
-  if (error && profile?.role !== "pmo") {
+  if (error && profile?.role !== "pmo" && profile?.role !== "administrator") {
     return (
       <div className="h-full flex flex-col items-center justify-center">
         <div className="bg-rose-50 text-rose-600 p-6 rounded-2xl max-w-md text-center">

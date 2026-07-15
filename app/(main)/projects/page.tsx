@@ -127,9 +127,9 @@ export default function ProjectsPage() {
                       </div>
                     </td>
                     <td className="py-4 pr-4 text-right">
-                      <button className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-[var(--color-brand-orange)] hover:border-[var(--color-brand-orange)] transition shadow-sm">
+                      <Link href={`/projects/${project.id}`} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-[var(--color-brand-orange)] hover:border-[var(--color-brand-orange)] transition shadow-sm">
                         <ArrowRight size={14} />
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 );

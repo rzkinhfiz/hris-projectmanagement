@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../utils/supabase/client";
 import { useAuth } from "../hooks/useAuth";
@@ -19,7 +19,7 @@ export default function Page() {
     }
   }, [router, user]);
 
-  const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSignIn = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setErrorMessage(null);

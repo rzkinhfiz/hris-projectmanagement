@@ -12,7 +12,25 @@ export async function getProjectManagers(): Promise<{ data: Profile[]; error: Po
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("role", "project_manager")
+    .in("role", ["project_manager", "pmo"])
+    .order("full_name", { ascending: true });
+
+  return {
+    data: (data as Profile[] | null) ?? [],
+    error,
+  };
+}
+
+export async function getAllProfiles(): Promise<{ data: Profile[]; error: PostgrestError | null }> {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return { data: [], error: null };
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
     .order("full_name", { ascending: true });
 
   return {

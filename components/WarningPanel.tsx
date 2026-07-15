@@ -12,7 +12,7 @@ export type WarningItem = {
 
 type WarningPanelProps = {
   warnings: WarningItem[];
-  role: "project_team" | "project_manager" | "pmo";
+  role: "project_team" | "project_manager" | "pmo" | "administrator" | null;
 };
 
 export function WarningPanel({ warnings, role }: WarningPanelProps) {
@@ -40,7 +40,7 @@ export function WarningPanel({ warnings, role }: WarningPanelProps) {
                   Triggered by {warning.triggered_by}
                 </p>
               </div>
-              <RoleGuard currentRole={role} allowed={["pmo"]}>
+              <RoleGuard currentRole={role || ""} allowed={["pmo", "administrator"]}>
                 <button
                   type="button"
                   className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700"
