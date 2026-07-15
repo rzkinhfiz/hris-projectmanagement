@@ -11,7 +11,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function CreateProjectPage() {
-  const { session, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
   
   const [pms, setPms] = useState<Profile[]>([]);
@@ -22,7 +22,7 @@ export default function CreateProjectPage() {
   useEffect(() => {
     // If auth is loaded and user is not PMO, redirect or show error
     if (!authLoading) {
-      if (!session) {
+      if (!user) {
         router.replace("/");
         return;
       }
@@ -46,7 +46,7 @@ export default function CreateProjectPage() {
 
       fetchPMs();
     }
-  }, [authLoading, session, profile, router]);
+  }, [authLoading, user, profile, router]);
 
   const handleSubmit = async (data: ProjectFormData) => {
     setIsSubmitting(true);
