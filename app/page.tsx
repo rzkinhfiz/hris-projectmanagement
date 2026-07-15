@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../utils/supabase/client";
-import { InitialUsersButton } from "../components/InitialUsersButton";
 import { useAuth } from "../hooks/useAuth";
 
 export default function Page() {
@@ -111,8 +110,6 @@ export default function Page() {
             )}
           </button>
         </form>
-
-        <InitialUsersButton />
       </div>
     </main>
   );

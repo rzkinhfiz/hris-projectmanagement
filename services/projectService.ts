@@ -38,3 +38,22 @@ export async function getProjectDetails(projectId: string): Promise<{ data: Proj
     error,
   };
 }
+
+export async function createProject(project: Omit<Project, "id" | "created_at" | "updated_at">): Promise<{ data: Project | null; error: PostgrestError | null }> {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return { data: null, error: null };
+  }
+
+  const { data, error } = await supabase
+    .from("projects")
+    .insert([project])
+    .select("*")
+    .single();
+
+  return {
+    data: (data as Project | null) ?? null,
+    error,
+  };
+}

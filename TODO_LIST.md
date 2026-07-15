@@ -9,6 +9,15 @@ Referensi: `build-guides/development-roadmap-guide.md`, `build-guides/system-arc
 - [ ] Buat halaman auth awal / hook `/hooks/useAuth.ts` untuk membaca session dan role. | Priority: High
 - [ ] Verifikasi bahwa role tersedia dalam session sehingga UI dapat menentukan akses. | Priority: Medium
 
+## Fase 1.5: User & Account Management (Information System Foundation)
+Referensi: `build-guides/system-architecture-data-schema-guide.md`, `implementation_plan.md`
+
+- [ ] Tambahkan route page `app/settings/page.tsx` untuk Pengaturan Akun (Edit Profil, Reset Password) bagi semua role. | Priority: High
+- [ ] Tambahkan route page `app/users/page.tsx` untuk CRUD Pengguna (khusus role `pmo`) untuk invite user baru dan set role. | Priority: High
+- [ ] Buat file `/services/profiles.ts` untuk logika read/update profil pengguna. | Priority: High
+- [ ] Buat file `/services/auth.ts` untuk membungkus fungsi Supabase Auth (Sign In, Reset Password, Invite User). | Priority: High
+- [ ] Implementasikan validasi *Role-Based Access Control* (RBAC) pada level UI dan Service agar halaman `users` hanya bisa diakses `pmo`. | Priority: High
+
 ## Fase 2: Core Data Model & RLS
 Referensi: `build-guides/system-architecture-data-schema-guide.md`, `build-guides/development-roadmap-guide.md`
 
@@ -20,10 +29,13 @@ Referensi: `build-guides/system-architecture-data-schema-guide.md`, `build-guide
 - [ ] Buat tabel `governance_indicators` dan `governance_warnings`. | Priority: High
 - [ ] Terapkan RLS pada `projects`, `tasks`, `progress_updates`, `governance_indicators`, dan `governance_warnings`. | Priority: High
 - [ ] Buat helper RLS `public.is_project_member(project_id)` di Supabase. | Priority: Medium
-- [ ] Buat service CRUD dasar di `/services`:
-  - `/services/projects.ts`
+- [ ] Buat service CRUD dasar dengan aturan RBAC ketat di `/services`:
+  - `/services/projects.ts` (Create khusus PMO, Edit sebagian oleh PM, Read sesuai akses)
   - `/services/tasks.ts`
   - `/services/progress.ts` | Priority: High
+- [ ] Tambahkan route page `app/projects/create/page.tsx` khusus untuk PMO membuat proyek baru dan mendaftarkan PM. | Priority: High
+- [ ] Tambahkan route page `app/projects/[id]/edit/page.tsx` khusus untuk PMO dan PM. | Priority: High
+- [ ] Buat komponen form `ProjectForm.tsx` (reusable untuk create/edit) dan `ProjectDeleteButton.tsx` (khusus PMO). | Priority: Medium
 
 ## Fase 3: Project Team & Project Manager Workflow
 Referensi: `build-guides/ui-ux-design-system-guide.md`, `build-guides/development-roadmap-guide.md`

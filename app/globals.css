@@ -10,6 +10,11 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  --color-sidebar: #131417;
+  --color-canvas: #f4efe6;
+  --color-card: #ffffff;
+  --color-brand-orange: #ef5a28;
 }
 
 @media (prefers-color-scheme: dark) {

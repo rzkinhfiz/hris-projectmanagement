@@ -97,11 +97,13 @@ Panduan ini mendefinisikan struktur tabel Supabase (PostgreSQL) untuk sistem PMO
 
 | Role | Akses Utama | Create | Read | Update | Delete | Governance Read-only |
 |---|---|---|---|---|---|---|
-| `project_team` | own project/task | ✅ progress, note | ✅ own project/task | ✅ own progress/task | ❌ | ✅ baca saja |
-| `project_manager` | project planning/execution | ✅ planning, milestones, tasks | ✅ project | ✅ plan/execution | ❌ | ✅ baca saja |
-| `pmo` | monitoring penuh | ✅ warning, indicator | ✅ semua | ✅ governance | ✅ governance cleanup | ❌ bukan read-only |
+| `project_team` | own project/task | ✅ progress, note | ✅ own project/task, own profile | ✅ own progress/task, own profile | ❌ | ✅ baca saja |
+| `project_manager` | project planning/execution | ✅ planning, milestones, tasks | ✅ project, own profile | ✅ plan/execution, own profile | ❌ | ✅ baca saja |
+| `pmo` | monitoring penuh & admin | ✅ user, project, warning | ✅ semua | ✅ user, project, governance | ✅ governance, user (deactivate) | ❌ bukan read-only |
 
-> Governance area harus hanya dapat ditulis oleh role `pmo`. Role lain tetap dapat membaca data governance sebagai bagian dari monitoring tetapi tidak boleh mengubah data governance.
+> - **Account Settings:** Semua role dapat melakukan *Read* dan *Update* pada profil mereka sendiri (Edit Nama, Ganti Password).
+> - **User Management:** Hanya role `pmo` yang dapat melakukan CRUD pada entitas `profiles`.
+> - **Project CRUD:** Pembuatan proyek (Create) dilakukan oleh `pmo`. Pengelolaan data operasional proyek (Update) dilakukan oleh `project_manager`. Governance area harus hanya dapat ditulis oleh role `pmo`.
 
 ## Row Level Security (RLS)
 
@@ -144,10 +146,47 @@ create policy "Project manager can select managed projects" on projects
     and pm_id = auth.uid()
   );
 
+create policy "Project manager can update managed projects" on projects
+  for update using (
+    auth.role() = 'project_manager'
+    and pm_id = auth.uid()
+  );
+
 create policy "PMO can select all projects" on projects
   for select using (
     auth.role() = 'pmo'
   );
+
+create policy "PMO can insert projects" on projects
+  for insert with check (
+    auth.role() = 'pmo'
+  );
+
+create policy "PMO can update all projects" on projects
+  for update using (
+    auth.role() = 'pmo'
+  );
+```
+
+### Contoh policy untuk tabel `profiles` (User Management)
+
+```sql
+alter table profiles enable row level security;
+
+create policy "Users can select own profile" on profiles
+  for select using (auth.uid() = id);
+
+create policy "Users can update own profile" on profiles
+  for update using (auth.uid() = id);
+
+create policy "PMO can select all profiles" on profiles
+  for select using (auth.role() = 'pmo');
+
+create policy "PMO can insert profiles" on profiles
+  for insert with check (auth.role() = 'pmo');
+
+create policy "PMO can update all profiles" on profiles
+  for update using (auth.role() = 'pmo');
 ```
 
 ### Contoh policy governance read-only
