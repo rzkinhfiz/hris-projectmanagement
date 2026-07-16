@@ -167,8 +167,8 @@ export function GanttChart({ tasks, profiles, canEditDates, onTaskClick }: Gantt
                 </div>
                 <div className="w-8 flex-shrink-0 flex justify-center">
                   {task.owner_id && profiles[task.owner_id] ? (
-                    <div className="w-7 h-7 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600" title={profiles[task.owner_id as string].full_name}>
-                      {profiles[task.owner_id as string].full_name.slice(0, 2).toUpperCase()}
+                    <div className="w-7 h-7 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-[10px] font-bold text-slate-600" title={profiles[task.owner_id]?.full_name || undefined}>
+                      {profiles[task.owner_id]?.full_name?.slice(0, 2).toUpperCase() || ""}
                     </div>
                   ) : (
                     <div className="w-7 h-7 rounded-full bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-slate-400">
