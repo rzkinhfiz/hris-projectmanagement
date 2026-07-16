@@ -156,3 +156,112 @@ export async function updateTaskProgress(
     error: progressUpdateError,
   };
 }
+
+export async function createTask(
+  payload: import("../types").CreateTaskPayload
+): Promise<{ data: Task | null; error: ServiceError | null }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { data: null, error: { message: "Supabase client is unavailable.", code: "500", details: "", hint: "" } as any };
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user?.id) return { data: null, error: userError as any };
+
+  const insertPayload: any = {
+    project_id: payload.project_id,
+    name: payload.name,
+    priority: payload.priority,
+    status: "To Do",
+    progress: 0,
+    is_milestone: false,
+    is_governance_readonly: false,
+    estimated_hours: payload.estimated_hours || 0
+  };
+
+  if (payload.owner_id) insertPayload.owner_id = payload.owner_id;
+  if (payload.planned_start) insertPayload.planned_start = payload.planned_start;
+  if (payload.planned_end) insertPayload.planned_end = payload.planned_end;
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .insert(insertPayload)
+    .select("*")
+    .maybeSingle();
+
+  if (error) return { data: null, error };
+
+  await createAuditLog({
+    entity: "Task",
+    entity_id: data.id,
+    action: "CREATE_TASK",
+    performed_by: userData.user.id,
+    details: { project_id: payload.project_id, name: payload.name }
+  });
+
+  return { data: data as Task, error: null };
+}
+
+export async function updateTaskStatus(
+  taskId: string,
+  updates: Partial<Task>,
+  userId: string,
+  note?: string
+): Promise<{ data: Task | null; error: ServiceError | null }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { data: null, error: { message: "Supabase client is unavailable.", code: "500", details: "", hint: "" } as any };
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq("id", taskId)
+    .select("*")
+    .maybeSingle();
+
+  if (error) return { data: null, error };
+
+  if (note && updates.progress !== undefined) {
+    await supabase.from("progress_updates").insert({
+      task_id: taskId,
+      project_id: data.project_id,
+      updated_by: userId,
+      progress: updates.progress,
+      note,
+    });
+  }
+
+  await createAuditLog({
+    entity: "Task",
+    entity_id: taskId,
+    action: "UPDATE_TASK",
+    performed_by: userId,
+    details: { updated_fields: Object.keys(updates).join(', '), note: note || null }
+  });
+
+  return { data: data as Task, error: null };
+}
+
+export async function deleteTask(
+  taskId: string,
+  userId: string
+): Promise<{ error: ServiceError | null }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { error: { message: "Supabase client is unavailable.", code: "500", details: "", hint: "" } as any };
+
+  const { data: task, error: fetchErr } = await supabase.from("tasks").select("project_id").eq("id", taskId).maybeSingle();
+  if (fetchErr) return { error: fetchErr };
+
+  const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+  if (error) return { error };
+
+  if (task) {
+    await createAuditLog({
+      entity: "Task",
+      entity_id: taskId,
+      action: "DELETE_TASK",
+      performed_by: userId,
+      details: { project_id: task.project_id }
+    });
+  }
+
+  return { error: null };
+}
+

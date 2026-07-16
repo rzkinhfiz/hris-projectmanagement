@@ -6,6 +6,7 @@ import { RevenueTab } from "./tabs/RevenueTab";
 import { BudgetTab } from "./tabs/BudgetTab";
 import { ResourceTab } from "./tabs/ResourceTab";
 import { RaidTab } from "./tabs/RaidTab";
+import { TasksTab } from "./tabs/TasksTab";
 import { 
   FileText, 
   CheckSquare, 
@@ -132,12 +133,7 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
         )}
         
         {activeTab === "tasks" && (
-           <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 h-full flex items-center justify-center">
-             <div className="text-center text-slate-400">
-                <CheckSquare size={48} className="mx-auto mb-4 opacity-50" />
-                <p>Task dependencies and Gantt Chart view will be rendered here.</p>
-             </div>
-           </div>
+           <TasksTab project={project} />
         )}
         
         {activeTab === "revenue" && (

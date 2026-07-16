@@ -1,41 +1,52 @@
-"use client";
+import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
+import { ProfileForm } from '@/components/ProfileForm';
+import { SecurityForm } from '@/components/SecurityForm';
+import type { Profile } from '@/types';
 
-import React from "react";
-import { Settings as SettingsIcon, User } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { cookies } from 'next/headers';
 
-export default function SettingsPage() {
-  const { profile, loading } = useAuth();
+export const metadata = {
+  title: 'Account Settings | HRIS PMO',
+};
+
+export default async function SettingsPage() {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+  
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session) {
+    redirect('/');
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', session.user.id)
+    .single();
+
+  if (!profile) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="bg-rose-50 text-rose-600 p-8 rounded-[2rem] max-w-md text-center border border-rose-100 shadow-sm">
+          <h2 className="text-xl font-bold mb-2">Profile Not Found</h2>
+          <p className="text-sm">We could not load your profile information. Please contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 min-h-[500px] flex flex-col">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          <SettingsIcon className="text-[var(--color-brand-orange)]" />
-          Account Settings
-        </h2>
-        <p className="text-sm text-slate-500 mt-1">Manage your personal profile and preferences.</p>
+    <div className="h-full flex flex-col space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">Account Settings</h1>
+        <p className="text-slate-500 text-sm mt-1">Manage your personal information and security preferences.</p>
       </div>
-      
-      <div className="flex-1 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center bg-slate-50 p-6">
-        <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mb-4 text-slate-400">
-          <User size={32} />
-        </div>
-        
-        {loading ? (
-          <div className="h-10 w-48 bg-slate-200 animate-pulse rounded-full mb-2"></div>
-        ) : (
-          <>
-            <h3 className="text-xl font-bold text-slate-700">{profile?.full_name || "User Name"}</h3>
-            <span className="bg-orange-100 text-orange-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide mt-2">
-              {profile?.role?.replace('_', ' ') || "Role"}
-            </span>
-          </>
-        )}
-        
-        <p className="text-sm text-slate-500 max-w-sm mt-6 text-center">
-          Profile edit form (Change Name, Change Password, etc.) will be implemented here.
-        </p>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-grow pb-8">
+        <ProfileForm profile={profile as Profile} userEmail={session.user.email || ''} />
+        <SecurityForm />
       </div>
     </div>
   );

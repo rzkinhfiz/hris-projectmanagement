@@ -129,7 +129,7 @@ export default function CreateProjectPage() {
           projectManagers={pms} 
           onSubmit={handleSubmit} 
           isSubmitting={isSubmitting} 
-          cancelHref="/dashboard"
+          cancelHref="/projects"
         />
       </div>
     </div>

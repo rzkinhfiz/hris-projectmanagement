@@ -6,6 +6,8 @@ export interface Profile {
   full_name: string | null;
   role: UserRole;
   project_id: string | null;
+  avatar_url?: string | null;
+  phone_number?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -83,6 +85,16 @@ export interface Task {
   is_governance_readonly: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface CreateTaskPayload {
+  project_id: string;
+  name: string;
+  owner_id: string | null;
+  priority: string;
+  planned_start: string | null;
+  planned_end: string | null;
+  estimated_hours: number;
 }
 
 export interface InvoicingTerm {
