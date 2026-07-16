@@ -13,6 +13,7 @@ export async function getProjectManagers(): Promise<{ data: Profile[]; error: Po
     .from("profiles")
     .select("*")
     .in("role", ["project_manager", "pmo"])
+    .eq("status", "ACTIVE")
     .order("full_name", { ascending: true });
 
   return {
@@ -31,6 +32,25 @@ export async function getAllProfiles(): Promise<{ data: Profile[]; error: Postgr
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
+    .order("full_name", { ascending: true });
+
+  return {
+    data: (data as Profile[] | null) ?? [],
+    error,
+  };
+}
+
+export async function getActiveProfiles(): Promise<{ data: Profile[]; error: PostgrestError | null }> {
+  const supabase = getSupabaseClient();
+
+  if (!supabase) {
+    return { data: [], error: null };
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("status", "ACTIVE")
     .order("full_name", { ascending: true });
 
   return {

@@ -45,7 +45,7 @@ export async function updateInvoicingTerm(
   // First, verify status is still unbilled
   const { data: currentTerm, error: fetchError } = await supabase
     .from("project_invoicing_terms")
-    .select("invoice_status")
+    .select("*")
     .eq("id", id)
     .single();
 
@@ -63,17 +63,15 @@ export async function updateInvoicingTerm(
   }
 
   // Record audit log
-  const { createAuditLog } = await import("./auditService");
-  await createAuditLog({
-    entity: "InvoicingTerm",
-    entity_id: id,
-    action: "UPDATE_TERM",
-    performed_by: auditContext.performedBy,
-    details: {
-      reason: auditContext.reason,
-      old_values: JSON.stringify(auditContext.oldValues),
-      new_values: JSON.stringify(updates),
-    },
+  const { logProjectActivity } = await import("./auditService");
+  await logProjectActivity({
+    project_id: currentTerm.project_id || id, // actually id is term id, wait. I need project_id.
+    actor_id: auditContext.performedBy,
+    module: "TERMS_REVENUE",
+    action_type: "UPDATE",
+    item_label: `Termin ${currentTerm.term_number || 'Update'}`,
+    old_data: auditContext.oldValues,
+    new_data: updates,
   });
 
   const { data, error } = await supabase

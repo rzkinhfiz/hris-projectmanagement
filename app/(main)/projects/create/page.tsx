@@ -61,9 +61,11 @@ export default function CreateProjectPage() {
       project_class: data.project_class === "" ? undefined : data.project_class,
       internal_drive_url: data.internal_drive_url === "" ? undefined : data.internal_drive_url,
       external_drive_url: data.external_drive_url === "" ? undefined : data.external_drive_url,
+      nda_status: data.nda_status,
+      spk_status: data.spk_status,
       start_date: data.start_date === "" ? undefined : data.start_date,
       end_date: data.end_date === "" ? undefined : data.end_date,
-      status: data.status,
+      status: (data.status as import("@/types").ProjectStatus) || "Draft",
     };
 
     const { error: submitError } = await createProject(newProject, {

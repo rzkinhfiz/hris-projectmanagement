@@ -26,7 +26,10 @@ export async function getResourceAllocations(projectId: string): Promise<{ data:
   return { data: allocations, error };
 }
 
-export async function createResourceAllocation(allocation: Omit<ResourceAllocation, "id" | "created_at" | "updated_at">): Promise<{ data: ResourceAllocation | null; error: PostgrestError | null }> {
+export async function createResourceAllocation(
+  allocation: Omit<ResourceAllocation, "id" | "created_at" | "updated_at">,
+  auditContext?: { performerId: string }
+): Promise<{ data: ResourceAllocation | null; error: PostgrestError | null }> {
   const supabase = getSupabaseClient();
   if (!supabase) return { data: null, error: null };
 
@@ -35,6 +38,64 @@ export async function createResourceAllocation(allocation: Omit<ResourceAllocati
     .insert([allocation])
     .select("*")
     .single();
+
+  if (!error && data && auditContext) {
+    const { logProjectActivity } = await import("./auditService");
+    await logProjectActivity({
+      project_id: data.project_id,
+      actor_id: auditContext.performerId,
+      module: "RESOURCE_LOAD",
+      action_type: "CREATE",
+      item_label: `Penugasan ${data.functional_role}`,
+      new_data: data
+    });
+  }
+
+  return {
+    data: (data as ResourceAllocation | null) ?? null,
+    error,
+  };
+}
+
+export async function updateResourceAllocation(
+  id: string,
+  updates: Partial<Omit<ResourceAllocation, "id" | "created_at" | "updated_at">>,
+  auditContext?: { performerId: string }
+): Promise<{ data: ResourceAllocation | null; error: PostgrestError | null }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { data: null, error: null };
+
+  const { data: oldData } = await supabase.from("project_resource_allocations").select("*").eq("id", id).single();
+
+  const { data, error } = await supabase
+    .from("project_resource_allocations")
+    .update(updates)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (!error && oldData && data && auditContext) {
+    const { logProjectActivity } = await import("./auditService");
+    const changedOldData: Record<string, unknown> = {};
+    const changedNewData: Record<string, unknown> = {};
+    for (const key of Object.keys(updates)) {
+      if ((oldData as any)[key] !== (updates as any)[key]) {
+        changedOldData[key] = (oldData as any)[key];
+        changedNewData[key] = (updates as any)[key];
+      }
+    }
+    if (Object.keys(changedNewData).length > 0) {
+      await logProjectActivity({
+        project_id: data.project_id,
+        actor_id: auditContext.performerId,
+        module: "RESOURCE_LOAD",
+        action_type: "UPDATE",
+        item_label: `Penugasan ${data.functional_role}`,
+        old_data: changedOldData,
+        new_data: changedNewData
+      });
+    }
+  }
 
   return {
     data: (data as ResourceAllocation | null) ?? null,

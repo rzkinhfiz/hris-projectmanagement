@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import type { Profile } from "../../types";
+import { AlertCircle, HelpCircle } from "lucide-react";
+import { TooltipNote } from "@/components/TooltipNote";
+import type { Profile, LegalStatus } from "../../types";
 
 export interface ProjectFormData {
   code: string;
@@ -13,13 +15,13 @@ export interface ProjectFormData {
   contract_value_excl_tax: number;
   sales_order_no: string;
   project_class: string;
-  nda_status: "pending" | "done" | "not_required";
-  spk_status: "pending" | "done";
+  nda_status: LegalStatus;
+  spk_status: LegalStatus;
   internal_drive_url: string;
   external_drive_url: string;
   start_date: string;
   end_date: string;
-  status: "draft" | "active" | "on_hold" | "completed";
+  status: import("../../types").ProjectStatus;
 }
 
 interface ProjectFormProps {
@@ -46,13 +48,13 @@ export function ProjectForm({
     contract_value_excl_tax: initialData?.contract_value_excl_tax || 0,
     sales_order_no: initialData?.sales_order_no || "",
     project_class: initialData?.project_class || "",
-    nda_status: initialData?.nda_status || "pending",
-    spk_status: initialData?.spk_status || "pending",
+    nda_status: initialData?.nda_status || "NOT_STARTED",
+    spk_status: initialData?.spk_status || "NOT_STARTED",
     internal_drive_url: initialData?.internal_drive_url || "",
     external_drive_url: initialData?.external_drive_url || "",
     start_date: initialData?.start_date || "",
     end_date: initialData?.end_date || "",
-    status: initialData?.status || "draft",
+    status: initialData?.status || "Draft",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -183,7 +185,12 @@ export function ProjectForm({
         <h3 className={sectionTitleClass}>Section 2: Kontrak, Finansial & Legalitas</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div>
-            <label className={labelClass}>Contract Value Excl. Tax (Rp) *</label>
+            <label className={`${labelClass} flex items-center gap-1.5`}>
+              Contract Value Excl. Tax (Rp) *
+              <TooltipNote content="Input nominal kontrak bersih di luar pajak (Excl. Tax)">
+                <HelpCircle size={14} className="text-slate-400 cursor-help hover:text-[var(--color-brand-orange)] transition-colors" />
+              </TooltipNote>
+            </label>
             <div className="relative">
               <span className="absolute left-4 top-3 text-slate-500 font-medium">Rp</span>
               <input
@@ -227,18 +234,33 @@ export function ProjectForm({
             </select>
           </div>
           <div>
-            <label className={labelClass}>NDA Status</label>
+            <label className={`${labelClass} flex items-center gap-1.5`}>
+              NDA Status
+              <TooltipNote content="Status verifikasi dokumen legal dari PMO">
+                <HelpCircle size={14} className="text-slate-400 cursor-help hover:text-[var(--color-brand-orange)] transition-colors" />
+              </TooltipNote>
+            </label>
             <select name="nda_status" value={formData.nda_status} onChange={handleChange} className={`${inputClass} ${!formData.nda_status ? 'text-slate-400' : 'text-slate-900'}`}>
-              <option value="pending" className="text-slate-900">Pending</option>
-              <option value="done" className="text-slate-900">Done</option>
-              <option value="not_required" className="text-slate-900">Not Required</option>
+              <option value="NOT_STARTED" className="text-slate-900">Not Started</option>
+              <option value="IN_REVIEW" className="text-slate-900">In Review</option>
+              <option value="SIGNED" className="text-slate-900">Signed</option>
+              <option value="REJECTED" className="text-slate-900">Rejected</option>
+              <option value="NOT_REQUIRED" className="text-slate-900">Not Required / Waived</option>
             </select>
           </div>
           <div>
-            <label className={labelClass}>SPK Status</label>
+            <label className={`${labelClass} flex items-center gap-1.5`}>
+              SPK Status
+              <TooltipNote content="Status verifikasi dokumen legal dari PMO">
+                <HelpCircle size={14} className="text-slate-400 cursor-help hover:text-[var(--color-brand-orange)] transition-colors" />
+              </TooltipNote>
+            </label>
             <select name="spk_status" value={formData.spk_status} onChange={handleChange} className={`${inputClass} ${!formData.spk_status ? 'text-slate-400' : 'text-slate-900'}`}>
-              <option value="pending" className="text-slate-900">Pending</option>
-              <option value="done" className="text-slate-900">Done</option>
+              <option value="NOT_STARTED" className="text-slate-900">Not Started</option>
+              <option value="IN_REVIEW" className="text-slate-900">In Review</option>
+              <option value="SIGNED" className="text-slate-900">Signed</option>
+              <option value="REJECTED" className="text-slate-900">Rejected</option>
+              <option value="NOT_REQUIRED" className="text-slate-900">Not Required / Waived</option>
             </select>
           </div>
         </div>

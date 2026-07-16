@@ -4,7 +4,7 @@ import { type NextRequest, NextResponse } from "next/server";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-export const createClient = (request: NextRequest) => {
+export const createClient = async (request: NextRequest) => {
   let supabaseResponse = NextResponse.next({
     request: {
       headers: request.headers,
@@ -25,6 +25,25 @@ export const createClient = (request: NextRequest) => {
       },
     },
   });
+
+  // Add user checking logic here
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const internalRoutes = [
+    "/dashboard",
+    "/projects",
+    "/time-log",
+    "/users",
+    "/resource-mgmt",
+    "/reports",
+    "/settings"
+  ];
+
+  const isInternal = internalRoutes.some((route) => request.nextUrl.pathname.startsWith(route));
+
+  if (!user && isInternal) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
 
   return supabaseResponse;
 };

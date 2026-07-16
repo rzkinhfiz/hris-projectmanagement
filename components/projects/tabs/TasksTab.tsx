@@ -3,14 +3,16 @@
 import React, { useEffect, useState } from 'react';
 import type { Project, Profile } from '@/types';
 import type { TaskWithWorkstream } from '@/services/taskService';
-import { getTasksByProject, updateTaskStatus } from '@/services/taskService';
+import { getTasksByProject, updateTaskStatus, deleteTask } from '@/services/taskService';
 import { createClient } from '@/utils/supabase/client';
 import { AddTaskModal } from '@/components/AddTaskModal';
+import { EditTaskModal } from '@/components/EditTaskModal';
+import { GanttChart } from './GanttChart';
 import { RoleGuard } from '@/components/RoleGuard';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   CheckSquare, Search, Plus, Calendar, MoreHorizontal, 
-  List, Kanban, Clock, Filter, Flag
+  List, Kanban, Clock, Filter, Flag, Check, Pencil, Trash2
 } from 'lucide-react';
 
 interface TasksTabProps {
@@ -18,6 +20,127 @@ interface TasksTabProps {
 }
 
 type ViewMode = 'list' | 'kanban' | 'gantt';
+
+// --- ActionMenu Internal Component ---
+function ActionMenu({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutsideClick = () => setIsOpen(false);
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, [isOpen]);
+
+  return (
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="text-slate-300 hover:text-slate-600 hover:bg-slate-100 p-1 rounded-md transition"
+      >
+        <MoreHorizontal size={16} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-1 w-36 bg-white border border-slate-100 rounded-xl shadow-xl z-30 py-1 overflow-hidden">
+          <button 
+            onClick={() => { setIsOpen(false); onEdit(); }}
+            className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+          >
+            <Pencil size={14} className="text-blue-500" /> Edit Task
+          </button>
+          <button 
+            onClick={() => { setIsOpen(false); onDelete(); }}
+            className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2"
+          >
+            <Trash2 size={14} /> Delete Task
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+// -----------------------------------------
+
+// --- ProgressSlider Internal Component ---
+function ProgressSlider({ 
+  taskId, 
+  initialProgress, 
+  disabled, 
+  hideLabel = false,
+  onSave 
+}: { 
+  taskId: string, 
+  initialProgress: number, 
+  disabled: boolean,
+  hideLabel?: boolean,
+  onSave: (taskId: string, progress: number) => Promise<void>
+}) {
+  const [localProgress, setLocalProgress] = useState(initialProgress);
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  // Sync if external progress changes
+  useEffect(() => {
+    setLocalProgress(initialProgress);
+  }, [initialProgress]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalProgress(Number(e.target.value));
+  };
+
+  const handleRelease = async () => {
+    if (localProgress === initialProgress) return;
+    setStatus('saving');
+    try {
+      await onSave(taskId, localProgress);
+      setStatus('saved');
+      setTimeout(() => setStatus('idle'), 2000);
+    } catch (err) {
+      console.error(err);
+      setStatus('error');
+      setLocalProgress(initialProgress); // Revert on failure
+      setTimeout(() => setStatus('idle'), 3000);
+    }
+  };
+
+  return (
+    <div className="w-full">
+      {!hideLabel && (
+        <div className="flex justify-between text-xs font-semibold mb-1">
+          <span className="text-slate-500 flex items-center gap-1">
+            Progress
+            {status === 'saving' && <div className="w-2.5 h-2.5 border border-[var(--color-brand-orange)] border-t-transparent rounded-full animate-spin"></div>}
+            {status === 'saved' && <Check size={12} className="text-emerald-500" />}
+            {status === 'error' && <span className="text-rose-500">Failed</span>}
+          </span>
+          <span className="text-slate-800">{localProgress}%</span>
+        </div>
+      )}
+      
+      {hideLabel && (
+        <div className="flex items-center gap-2 mb-1 justify-end">
+          {status === 'saving' && <div className="w-2.5 h-2.5 border border-[var(--color-brand-orange)] border-t-transparent rounded-full animate-spin"></div>}
+          {status === 'saved' && <Check size={12} className="text-emerald-500" />}
+          {status === 'error' && <span className="text-rose-500 text-[10px]">Failed</span>}
+          <span className="text-xs font-bold text-slate-700 w-8 text-right">{localProgress}%</span>
+        </div>
+      )}
+      
+      <input 
+        type="range" 
+        min="0" max="100" step="5"
+        value={localProgress}
+        disabled={disabled || status === 'saving'}
+        onChange={handleChange}
+        onMouseUp={handleRelease}
+        onTouchEnd={handleRelease}
+        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[var(--color-brand-orange)] disabled:opacity-50 disabled:cursor-not-allowed"
+      />
+    </div>
+  );
+}
+// -----------------------------------------
 
 export function TasksTab({ project }: TasksTabProps) {
   const { profile: currentUser } = useAuth();
@@ -31,7 +154,16 @@ export function TasksTab({ project }: TasksTabProps) {
   const [filterPriority, setFilterPriority] = useState<string>('all');
   
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskWithWorkstream | null>(null);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
+
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+    setUpdatingTaskId(taskId);
+    if (!currentUser) return;
+    await deleteTask(taskId, currentUser.id);
+    fetchData();
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -55,7 +187,8 @@ export function TasksTab({ project }: TasksTabProps) {
 
   const getOwnerName = (ownerId: string | null) => {
     if (!ownerId || !profiles[ownerId]) return "Unassigned";
-    return profiles[ownerId].full_name || "Unknown User";
+    const p = profiles[ownerId];
+    return p.status === 'INACTIVE' ? `${p.full_name} (Inactive)` : (p.full_name || "Unknown User");
   };
 
   const getInitials = (name: string) => {
@@ -196,7 +329,9 @@ export function TasksTab({ project }: TasksTabProps) {
                     {filteredTasks.filter(t => t.status === column.id).map(task => {
                       const ownerName = getOwnerName(task.owner_id);
                       const isOwner = currentUser?.id === task.owner_id;
-                      const canEdit = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || currentUser?.role === 'project_manager' || isOwner;
+                      const isProjectPM = currentUser?.role === 'project_manager' && project.pm_id === currentUser?.id;
+                      const canEdit = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM || isOwner;
+                      const canManageTask = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM;
                       
                       return (
                         <div key={task.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-slate-300 transition group relative">
@@ -219,26 +354,29 @@ export function TasksTab({ project }: TasksTabProps) {
                             </div>
                             
                             <RoleGuard currentRole={currentUser?.role || ''} allowed={["administrator", "pmo", "project_manager"]}>
-                              <button className="text-slate-300 hover:text-slate-600 transition">
-                                <MoreHorizontal size={16} />
-                              </button>
+                              {canManageTask && (
+                                <ActionMenu 
+                                  onEdit={() => setEditingTask(task)}
+                                  onDelete={() => handleDeleteTask(task.id)}
+                                />
+                              )}
                             </RoleGuard>
                           </div>
                           
                           <h4 className="font-bold text-slate-800 text-sm mb-3 leading-snug">{task.name}</h4>
                           
                           <div className="mb-4">
-                            <div className="flex justify-between text-xs font-semibold mb-1">
-                              <span className="text-slate-500">Progress</span>
-                              <span className="text-slate-800">{task.progress}%</span>
-                            </div>
-                            <input 
-                              type="range" 
-                              min="0" max="100" step="5"
-                              value={task.progress}
+                            <ProgressSlider 
+                              taskId={task.id}
+                              initialProgress={task.progress}
                               disabled={!canEdit}
-                              onChange={(e) => handleUpdateProgress(task.id, Number(e.target.value))}
-                              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[var(--color-brand-orange)] disabled:opacity-50 disabled:cursor-not-allowed"
+                              onSave={async (id, progress) => {
+                                // Background API call, don't set updatingTaskId
+                                if (!currentUser) return;
+                                await updateTaskStatus(id, { progress }, currentUser.id, "Progress updated via slider");
+                                // We manually mutate the local task to keep it in sync across views
+                                setTasks(prev => prev.map(t => t.id === id ? { ...t, progress } : t));
+                              }}
                             />
                           </div>
 
@@ -283,12 +421,15 @@ export function TasksTab({ project }: TasksTabProps) {
                     <th className="p-4">Assignee</th>
                     <th className="p-4">Due Date</th>
                     <th className="p-4">Progress</th>
+                    <th className="p-4 w-12"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredTasks.map(task => {
                     const isOwner = currentUser?.id === task.owner_id;
-                    const canEdit = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || currentUser?.role === 'project_manager' || isOwner;
+                    const isProjectPM = currentUser?.role === 'project_manager' && project.pm_id === currentUser?.id;
+                    const canEdit = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM || isOwner;
+                    const canManageTask = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM;
                     return (
                     <tr key={task.id} className="hover:bg-slate-50/50 transition">
                       <td className="p-4">
@@ -320,17 +461,28 @@ export function TasksTab({ project }: TasksTabProps) {
                       <td className="p-4 text-sm text-slate-500">
                         {task.planned_end ? new Date(task.planned_end).toLocaleDateString() : '-'}
                       </td>
+                      <td className="p-4 w-40">
+                        <ProgressSlider 
+                          taskId={task.id}
+                          initialProgress={task.progress}
+                          disabled={!canEdit}
+                          hideLabel={true}
+                          onSave={async (id, progress) => {
+                            if (!currentUser) return;
+                            await updateTaskStatus(id, { progress }, currentUser.id, "Progress updated via list view slider");
+                            setTasks(prev => prev.map(t => t.id === id ? { ...t, progress } : t));
+                          }}
+                        />
+                      </td>
                       <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <input 
-                            type="range" min="0" max="100" step="5"
-                            value={task.progress}
-                            disabled={!canEdit}
-                            onChange={(e) => handleUpdateProgress(task.id, Number(e.target.value))}
-                            className="w-24 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[var(--color-brand-orange)]"
-                          />
-                          <span className="text-xs font-bold text-slate-700 w-8">{task.progress}%</span>
-                        </div>
+                        <RoleGuard currentRole={currentUser?.role || ''} allowed={["administrator", "pmo", "project_manager"]}>
+                          {canManageTask && (
+                            <ActionMenu 
+                              onEdit={() => setEditingTask(task)}
+                              onDelete={() => handleDeleteTask(task.id)}
+                            />
+                          )}
+                        </RoleGuard>
                       </td>
                     </tr>
                   )})}
@@ -345,52 +497,16 @@ export function TasksTab({ project }: TasksTabProps) {
           )}
 
           {viewMode === 'gantt' && (
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 min-h-[400px]">
-              <div className="mb-6 flex justify-between items-end">
-                <div>
-                  <h3 className="font-bold text-slate-800 text-lg mb-1">Timeline View</h3>
-                  <p className="text-sm text-slate-500">Native CSS Grid visualization (simplified).</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {filteredTasks.map(task => {
-                  // Simplified visualization logic for native gantt
-                  // We simulate a grid of 30 days.
-                  const startDay = Math.floor(Math.random() * 10);
-                  const duration = Math.max(3, Math.floor(Math.random() * 15));
-                  const leftPercent = (startDay / 30) * 100;
-                  const widthPercent = (duration / 30) * 100;
-                  
-                  return (
-                    <div key={task.id} className="flex items-center gap-4 group">
-                      <div className="w-1/4 truncate text-sm font-medium text-slate-700">
-                        {task.name}
-                      </div>
-                      <div className="flex-1 bg-white h-10 rounded-xl border border-slate-200 relative overflow-hidden flex items-center px-1">
-                        <div className="absolute inset-0 bg-slate-100/50" style={{ backgroundSize: '10% 100%', backgroundImage: 'linear-gradient(to right, #e2e8f0 1px, transparent 1px)'}}></div>
-                        
-                        <div 
-                          className={`absolute h-6 rounded-md shadow-sm border flex items-center px-2 text-[10px] font-bold text-white overflow-hidden transition-all
-                            ${task.status === 'Completed' ? 'bg-emerald-500 border-emerald-600' : 
-                              task.status === 'In Progress' ? 'bg-blue-500 border-blue-600' : 'bg-slate-400 border-slate-500'}`}
-                          style={{ left: `${leftPercent}%`, width: `${widthPercent}%` }}
-                        >
-                          {task.progress}%
-                          
-                          <div 
-                            className="absolute bottom-0 left-0 h-1 bg-white/40" 
-                            style={{ width: `${task.progress}%`}}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {filteredTasks.length === 0 && (
-                  <div className="p-8 text-center text-slate-500 text-sm">No tasks to display in timeline.</div>
-                )}
-              </div>
+            <div className="flex-1">
+              <GanttChart 
+                tasks={filteredTasks} 
+                profiles={profiles} 
+                canEditDates={currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || (currentUser?.role === 'project_manager' && project.pm_id === currentUser?.id)}
+                onTaskClick={(task) => {
+                  // In the future, this would open an edit modal
+                  alert(`Edit task: ${task.name}`);
+                }}
+              />
             </div>
           )}
         </div>
@@ -403,6 +519,19 @@ export function TasksTab({ project }: TasksTabProps) {
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
             setShowAddModal(false);
+            fetchData();
+          }}
+        />
+      )}
+
+      {editingTask && currentUser && (
+        <EditTaskModal 
+          task={editingTask}
+          projectTeamProfiles={profiles}
+          currentUserId={currentUser.id}
+          onClose={() => setEditingTask(null)}
+          onSuccess={() => {
+            setEditingTask(null);
             fetchData();
           }}
         />

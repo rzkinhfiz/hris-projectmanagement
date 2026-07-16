@@ -18,6 +18,7 @@ export function AddUserModal({ onClose, onSuccess }: AddUserModalProps) {
     email: '',
     fullName: '',
     phoneNumber: '',
+    password: '',
     role: 'project_team' as UserRole,
   });
 
@@ -78,6 +79,20 @@ export function AddUserModal({ onClose, onSuccess }: AddUserModalProps) {
               onChange={handleChange}
               className={inputClass}
               placeholder="e.g. adhi@example.com"
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>Initial Password <span className="text-rose-500">*</span></label>
+            <input 
+              type="password" 
+              name="password"
+              required
+              minLength={6}
+              value={formData.password}
+              onChange={handleChange}
+              className={inputClass}
+              placeholder="Minimum 6 characters"
             />
           </div>
 

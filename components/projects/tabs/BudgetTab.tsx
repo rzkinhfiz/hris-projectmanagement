@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import type { Project, ProjectBudget } from "@/types";
-import { getProjectBudgets, createProjectBudget } from "@/services/budgetService";
-import { Plus, Loader2, CheckCircle2, Clock, Check, FileCheck2, Tag, ShoppingCart } from "lucide-react";
+import { getProjectBudgets, createProjectBudget, updateProjectBudget } from "@/services/budgetService";
+import { Plus, Loader2, CheckCircle2, Clock, Check, FileCheck2, Tag, ShoppingCart, Edit2, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface BudgetTabProps {
@@ -25,7 +25,17 @@ export function BudgetTab({ project }: BudgetTabProps) {
   const [status, setStatus] = useState<ProjectBudget['status']>("Planned");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isPMO = profile?.role === "pmo" || profile?.role === "administrator" || profile?.role === "project_manager";
+  // Edit states
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editCategory, setEditCategory] = useState<ProjectBudget['category']>("Personnel");
+  const [editItemName, setEditItemName] = useState("");
+  const [editPlannedAmount, setEditPlannedAmount] = useState("");
+  const [editActualAmount, setEditActualAmount] = useState("");
+  const [editPurchaseDate, setEditPurchaseDate] = useState("");
+  const [editStatus, setEditStatus] = useState<ProjectBudget['status']>("Planned");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const canManageProjectOps = ['administrator', 'pmo', 'project_manager'].includes(profile?.role || '');
 
   useEffect(() => {
     fetchBudgets();
@@ -52,7 +62,7 @@ export function BudgetTab({ project }: BudgetTabProps) {
       actual_amount: parseFloat(actualAmount) || 0,
       purchase_date: purchaseDate || null,
       status,
-    });
+    }, { performerId: profile?.id || "" });
 
     if (!error && data) {
       setBudgets([data, ...budgets]);
@@ -66,6 +76,38 @@ export function BudgetTab({ project }: BudgetTabProps) {
       alert(error?.message || "Failed to add budget item");
     }
     setIsSubmitting(false);
+  };
+
+  const handleStartEdit = (item: ProjectBudget) => {
+    setEditId(item.id);
+    setEditCategory(item.category);
+    setEditItemName(item.item_name);
+    setEditPlannedAmount((item.planned_amount || 0).toString());
+    setEditActualAmount((item.actual_amount || 0).toString());
+    setEditPurchaseDate(item.purchase_date ? new Date(item.purchase_date).toISOString().split('T')[0] : "");
+    setEditStatus(item.status);
+  };
+
+  const handleSaveEdit = async (item: ProjectBudget) => {
+    setIsSavingEdit(true);
+    const updates: Partial<ProjectBudget> = {};
+    if (editCategory !== item.category) updates.category = editCategory;
+    if (editItemName !== item.item_name) updates.item_name = editItemName;
+    if (parseFloat(editPlannedAmount) !== item.planned_amount) updates.planned_amount = parseFloat(editPlannedAmount);
+    if (parseFloat(editActualAmount) !== item.actual_amount) updates.actual_amount = parseFloat(editActualAmount);
+    if (editPurchaseDate !== item.purchase_date) updates.purchase_date = editPurchaseDate || null;
+    if (editStatus !== item.status) updates.status = editStatus;
+
+    if (Object.keys(updates).length > 0) {
+      const { data, error } = await updateProjectBudget(item.id, updates, { performerId: profile?.id || "" });
+      if (!error && data) {
+        setBudgets(budgets.map(b => b.id === item.id ? data : b));
+      } else {
+        alert(error?.message || "Failed to update item.");
+      }
+    }
+    setEditId(null);
+    setIsSavingEdit(false);
   };
 
   const getStatusStyle = (s: string) => {
@@ -92,7 +134,7 @@ export function BudgetTab({ project }: BudgetTabProps) {
           <p className="text-sm text-slate-500">Track and manage project disbursements</p>
         </div>
         
-        {isPMO && !showForm && (
+        {canManageProjectOps && !showForm && (
           <button 
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 bg-[var(--color-brand-orange)] hover:bg-orange-600 text-white px-4 py-2 rounded-full text-sm font-semibold transition"
@@ -131,7 +173,7 @@ export function BudgetTab({ project }: BudgetTabProps) {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Category</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value as any)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-[var(--color-brand-orange)]">
+              <select value={category} onChange={(e) => setCategory(e.target.value as any)} className={`w-full rounded-2xl border border-gray-200 p-3 text-sm transition focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 ${!category ? 'text-gray-600 font-medium' : 'text-gray-900 font-semibold'}`}>
                 <option value="Personnel">Personnel</option>
                 <option value="Software">Software</option>
                 <option value="Hardware">Hardware</option>
@@ -153,11 +195,11 @@ export function BudgetTab({ project }: BudgetTabProps) {
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Purchase Date (Optional)</label>
-              <input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className="w-full bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-[var(--color-brand-orange)]" />
+              <input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} className="w-full rounded-2xl border border-gray-200 p-3 text-sm text-gray-700 font-medium focus:text-gray-900 focus:border-amber-500 transition focus:outline-none focus:ring-1 focus:ring-amber-500" />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value as any)} className="w-full bg-white text-slate-900 border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-[var(--color-brand-orange)]">
+              <select value={status} onChange={(e) => setStatus(e.target.value as any)} className={`w-full rounded-2xl border border-gray-200 p-3 text-sm transition focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 ${!status ? 'text-gray-600 font-medium' : 'text-gray-900 font-semibold'}`}>
                 <option value="Planned">Planned</option>
                 <option value="Approved">Approved</option>
                 <option value="Disbursed">Disbursed</option>
@@ -191,32 +233,83 @@ export function BudgetTab({ project }: BudgetTabProps) {
                 <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actual (Rp)</th>
                 <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
                 <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                {canManageProjectOps && <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {budgets.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50 transition">
-                  <td className="py-4 px-4 text-sm font-semibold text-slate-800">{item.item_name}</td>
-                  <td className="py-4 px-4 text-sm text-slate-600">
-                     <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-xs font-medium">
-                       <Tag size={10} /> {item.category}
-                     </span>
-                  </td>
-                  <td className="py-4 px-4 text-sm font-medium text-slate-700 text-right">{(item.planned_amount || 0).toLocaleString()}</td>
-                  <td className="py-4 px-4 text-sm font-bold text-slate-800 text-right">
-                    {(item.actual_amount || 0).toLocaleString()}
-                  </td>
-                  <td className="py-4 px-4 text-sm text-slate-500">
-                    {item.purchase_date ? new Date(item.purchase_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', day: 'numeric' }) : "-"}
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-md uppercase tracking-wider ${getStatusStyle(item.status)}`}>
-                      {item.status === 'Disbursed' ? <CheckCircle2 size={12}/> : <Clock size={12}/>}
-                      {item.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {budgets.map((item) => {
+                if (editId === item.id) {
+                  return (
+                    <tr key={item.id} className="bg-slate-50 border-y-2 border-[var(--color-brand-orange)] shadow-inner">
+                      <td className="py-4 px-4">
+                        <input type="text" value={editItemName} onChange={(e) => setEditItemName(e.target.value)} className="w-full bg-white border border-slate-200 rounded text-sm px-2 py-1 outline-none focus:border-[var(--color-brand-orange)]" />
+                      </td>
+                      <td className="py-4 px-4">
+                        <select value={editCategory} onChange={(e) => setEditCategory(e.target.value as any)} className="w-full rounded border border-gray-200 p-1 text-sm text-gray-900 focus:border-amber-500 outline-none">
+                          <option value="Personnel">Personnel</option>
+                          <option value="Software">Software</option>
+                          <option value="Hardware">Hardware</option>
+                          <option value="Operational">Operational</option>
+                          <option value="Vendor">Vendor</option>
+                        </select>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <input type="number" value={editPlannedAmount} onChange={(e) => setEditPlannedAmount(e.target.value)} className="w-24 bg-white border border-slate-200 rounded text-sm px-2 py-1 outline-none text-right focus:border-[var(--color-brand-orange)]" />
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <input type="number" value={editActualAmount} onChange={(e) => setEditActualAmount(e.target.value)} className="w-24 bg-white border border-slate-200 rounded text-sm px-2 py-1 outline-none text-right focus:border-[var(--color-brand-orange)]" />
+                      </td>
+                      <td className="py-4 px-4">
+                        <input type="date" value={editPurchaseDate} onChange={(e) => setEditPurchaseDate(e.target.value)} className="w-full rounded border border-gray-200 p-1 text-sm text-gray-700 focus:border-amber-500 outline-none" />
+                      </td>
+                      <td className="py-4 px-4">
+                        <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as any)} className="w-full rounded border border-gray-200 p-1 text-sm text-gray-900 focus:border-amber-500 outline-none">
+                          <option value="Planned">Planned</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Disbursed">Disbursed</option>
+                        </select>
+                      </td>
+                      <td className="py-4 px-4" colSpan={1}>
+                        <div className="flex items-center gap-2 justify-end">
+                          <button onClick={() => setEditId(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded bg-white shadow-sm border border-slate-200"><X size={14}/></button>
+                          <button onClick={() => handleSaveEdit(item)} disabled={isSavingEdit} className="p-1 text-white bg-[var(--color-brand-orange)] hover:bg-orange-600 rounded shadow-sm disabled:opacity-50"><Check size={14}/></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return (
+                  <tr key={item.id} className="hover:bg-slate-50 transition">
+                    <td className="py-4 px-4 text-sm font-semibold text-slate-800">{item.item_name}</td>
+                    <td className="py-4 px-4 text-sm text-slate-600">
+                       <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-xs font-medium">
+                         <Tag size={10} /> {item.category}
+                       </span>
+                    </td>
+                    <td className="py-4 px-4 text-sm font-medium text-slate-700 text-right">{(item.planned_amount || 0).toLocaleString()}</td>
+                    <td className="py-4 px-4 text-sm font-bold text-slate-800 text-right">
+                      {(item.actual_amount || 0).toLocaleString()}
+                    </td>
+                    <td className="py-4 px-4 text-sm text-slate-500">
+                      {item.purchase_date ? new Date(item.purchase_date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', day: 'numeric' }) : "-"}
+                    </td>
+                    <td className="py-4 px-4">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold rounded-md uppercase tracking-wider ${getStatusStyle(item.status)}`}>
+                        {item.status === 'Disbursed' ? <CheckCircle2 size={12}/> : <Clock size={12}/>}
+                        {item.status}
+                      </span>
+                    </td>
+                    {canManageProjectOps && (
+                      <td className="py-4 px-4 text-right">
+                        <button onClick={() => handleStartEdit(item)} className="text-slate-400 hover:text-[var(--color-brand-orange)] transition">
+                          <Edit2 size={14} />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

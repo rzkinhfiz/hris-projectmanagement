@@ -8,8 +8,20 @@ export interface Profile {
   project_id: string | null;
   avatar_url?: string | null;
   phone_number?: string | null;
+  status?: 'ACTIVE' | 'INACTIVE';
   created_at: string;
   updated_at: string;
+}
+
+export type LegalStatus = 'NOT_STARTED' | 'IN_REVIEW' | 'SIGNED' | 'REJECTED' | 'NOT_REQUIRED';
+export type ProjectStatus = "Draft" | "To do" | "In progress" | "Hold" | "To review" | "Started" | "Overdue" | "Canceled" | "Completed";
+
+export interface ProjectMetadataPayload {
+  status: ProjectStatus;
+  project_class: string;
+  contract_value_excl_tax: number;
+  start_date: string;
+  end_date: string;
 }
 
 export interface Project {
@@ -18,7 +30,7 @@ export interface Project {
   name: string;
   client_name: string;
   description: string | null;
-  status: "draft" | "active" | "on_hold" | "completed";
+  status: ProjectStatus;
   pm_id: string | null;
   created_at: string;
   updated_at: string;
@@ -26,8 +38,10 @@ export interface Project {
   sales_order_no?: string | null;
   project_class?: string | null;
   contract_value_excl_tax?: number | null;
-  nda_status?: "pending" | "done" | "not_required";
-  spk_status?: "pending" | "done";
+  nda_status?: LegalStatus | null;
+  spk_status?: LegalStatus | null;
+  nda_document_url?: string | null;
+  spk_document_url?: string | null;
   internal_drive_url?: string | null;
   external_drive_url?: string | null;
   addendum_notes?: string | null;
@@ -44,14 +58,16 @@ export interface CreateProjectPayload {
   // Gap Analysis Fields
   sales_order_no?: string;
   project_class?: string;
-  contract_value_excl_tax: number;
-  nda_status: "pending" | "done" | "not_required";
-  spk_status: "pending" | "done";
+  contract_value_excl_tax?: number;
+  nda_status?: LegalStatus;
+  spk_status?: LegalStatus;
+  nda_document_url?: string;
+  spk_document_url?: string;
   internal_drive_url?: string;
   external_drive_url?: string;
   start_date?: string;
   end_date?: string;
-  status?: "draft" | "active" | "on_hold" | "completed";
+  status?: ProjectStatus;
 }
 
 export interface Workstream {
@@ -192,4 +208,69 @@ export interface ProjectIssueAndAction {
   status: "open" | "in_progress" | "closed";
   created_at: string;
   updated_at: string;
+}
+
+export type ActivityModule = 'METADATA' | 'BUDGET' | 'RESOURCE_LOAD' | 'RAID_LOG' | 'TASKS' | 'TERMS_REVENUE';
+export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE';
+
+export interface ProjectActivityLog {
+  id: string;
+  project_id: string;
+  actor_id: string;
+  module: ActivityModule;
+  action_type: ActionType;
+  item_label: string;
+  old_data: Record<string, unknown> | null;
+  new_data: Record<string, unknown> | null;
+  created_at: string;
+  actor?: Profile | null;
+}
+
+export interface CreateProjectActivityPayload {
+  project_id: string;
+  actor_id: string;
+  module: ActivityModule;
+  action_type: ActionType;
+  item_label: string;
+  old_data?: Record<string, unknown> | null;
+  new_data?: Record<string, unknown> | null;
+}
+
+export type TimeLogStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'REVISION_REQUESTED';
+
+export interface TimeLog {
+  id: string;
+  project_id: string;
+  task_id: string;
+  profile_id: string;
+  log_date: string; // 'YYYY-MM-DD'
+  hours: number;
+  status: TimeLogStatus;
+  rejection_reason: string | null;
+  proposed_hours: number | null;
+  negotiation_notes: string | null;
+  created_at: string;
+  updated_at: string;
+  
+  // Optional relations
+  project?: { name: string, code: string };
+  task?: { name: string };
+  profile?: { full_name: string, role: string, status?: string };
+}
+
+export interface TeamTimeLogFilters {
+  status?: TimeLogStatus | TimeLogStatus[] | 'ALL';
+  userId?: string;
+  projectId?: string;
+  startDate?: string;
+  endDate?: string;
+}
+export interface TimeLogPayload {
+  project_id: string;
+  task_id: string;
+  log_date: string;
+  hours: number;
+  status?: TimeLogStatus;
+  proposed_hours?: number | null;
+  negotiation_notes?: string | null;
 }

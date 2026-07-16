@@ -73,3 +73,37 @@ export async function resolveWarningAudit(
     },
   });
 }
+
+import type { CreateProjectActivityPayload, ProjectActivityLog } from "../types";
+
+export async function logProjectActivity(payload: CreateProjectActivityPayload) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { data: null, error: createServiceError("Supabase client is unavailable.") };
+  
+  const { data, error } = await supabase
+    .from("project_activity_logs")
+    .insert([payload])
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Failed to log project activity:", error);
+  }
+  return { data, error };
+}
+
+export async function getProjectActivityLogs(projectId: string) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { data: null, error: createServiceError("Supabase client is unavailable.") };
+  
+  const { data, error } = await supabase
+    .from("project_activity_logs")
+    .select(`
+      *,
+      actor:profiles!actor_id(*)
+    `)
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false });
+
+  return { data: data as ProjectActivityLog[] | null, error };
+}

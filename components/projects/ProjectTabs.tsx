@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
+import { ProjectComplianceCard } from "./ProjectComplianceCard";
+import { ProjectActivityTimeline } from "./ProjectActivityTimeline";
+import { History } from "lucide-react";
 
 interface ProjectTabsProps {
   project: Project;
@@ -33,6 +36,7 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
     { id: "budget", label: "Budgeting", icon: PieChart },
     { id: "resources", label: "Resource Load", icon: Users },
     { id: "raid", label: "RAID Log", icon: AlertTriangle },
+    { id: "activity", label: "Activity Log", icon: History },
   ];
 
   return (
@@ -60,48 +64,35 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
 
       <div className="flex-1 p-8 bg-slate-50/50">
         {activeTab === "overview" && (
-          <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-            <h3 className="text-lg font-bold text-slate-800 mb-6">Contract Administration</h3>
-            <div className="grid grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sales Order No.</label>
-                  <p className="text-slate-800 font-medium">{project.sales_order_no || "-"}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contract Value (Excl. Tax)</label>
-                  <p className="text-slate-800 font-medium">Rp {project.contract_value_excl_tax?.toLocaleString() || "0"}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">NDA Status</label>
-                  <span className={`inline-block mt-1 text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wider ${
-                    project.nda_status === 'done' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                  }`}>
-                    {project.nda_status || "pending"}
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Internal Drive URL</label>
-                  <p className="text-blue-600 hover:underline cursor-pointer truncate">{project.internal_drive_url || "Not set"}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">External Drive URL</label>
-                  <p className="text-blue-600 hover:underline cursor-pointer truncate">{project.external_drive_url || "Not set"}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">SPK Status</label>
-                  <span className={`inline-block mt-1 text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wider ${
-                    project.spk_status === 'done' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                  }`}>
-                    {project.spk_status || "pending"}
-                  </span>
-                </div>
-              </div>
-            </div>
+          <div className="space-y-6">
+            {profile && <ProjectComplianceCard project={project} currentUser={profile} />}
             
-            <RoleGuard currentRole={profile?.role || ""} allowed={["administrator"]}>
+            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+              <h3 className="text-lg font-bold text-slate-800 mb-6">Contract Administration</h3>
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sales Order No.</label>
+                    <p className="text-slate-800 font-medium">{project.sales_order_no || "-"}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contract Value (Excl. Tax)</label>
+                    <p className="text-slate-800 font-medium">Rp {project.contract_value_excl_tax?.toLocaleString() || "0"}</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Internal Drive URL</label>
+                    <p className="text-blue-600 hover:underline cursor-pointer truncate">{project.internal_drive_url || "Not set"}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">External Drive URL</label>
+                    <p className="text-blue-600 hover:underline cursor-pointer truncate">{project.external_drive_url || "Not set"}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <RoleGuard currentRole={profile?.role || ""} allowed={["administrator"]}>
               <div className="mt-8 pt-6 border-t border-slate-100">
                 <h4 className="text-sm font-bold text-red-600 uppercase tracking-wider mb-2">Danger Zone</h4>
                 <p className="text-sm text-slate-500 mb-4">
@@ -130,6 +121,7 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
               </div>
             </RoleGuard>
           </div>
+          </div>
         )}
         
         {activeTab === "tasks" && (
@@ -148,8 +140,12 @@ export function ProjectTabs({ project }: ProjectTabsProps) {
            <ResourceTab project={project} />
         )}
 
-        {activeTab === "raid" && (
+        { activeTab === "raid" && (
            <RaidTab project={project} />
+        )}
+
+        { activeTab === "activity" && (
+           <ProjectActivityTimeline projectId={project.id} />
         )}
       </div>
     </div>

@@ -5,6 +5,7 @@ import { Search, Bell, ChevronDown, ChevronLeft, LogOut, Settings } from "lucide
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { RoleBadge } from "./RoleBadge";
 
 export function Topbar() {
   const { profile, signOut } = useAuth();
@@ -21,14 +22,7 @@ export function Topbar() {
     return name.slice(0, 2).toUpperCase();
   };
 
-  // Helper to format role
-  const formatRole = (role?: string | null) => {
-    if (!role) return "Loading...";
-    if (role === "pmo") return "PMO";
-    if (role === "project_manager") return "Project Manager";
-    if (role === "project_team") return "Project Team";
-    return role;
-  };
+
 
   const handleLogout = async () => {
     await signOut();
@@ -98,22 +92,25 @@ export function Topbar() {
         <div className="relative" ref={dropdownRef}>
           <button 
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-3 bg-white rounded-full py-1.5 px-2 pr-4 shadow-sm hover:bg-slate-50 transition focus:ring-2 focus:ring-[var(--color-brand-orange)] outline-none"
+            className="flex items-center gap-3 bg-white rounded-full py-1.5 px-2 pr-4 shadow-sm hover:bg-slate-50 transition focus:ring-2 focus:ring-[var(--color-brand-orange)] outline-none max-w-[200px] sm:max-w-[260px] md:max-w-[300px]"
           >
-            <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0">
               <span className="text-xs font-bold text-slate-600">
                 {getInitials(profile?.full_name)}
               </span>
             </div>
-            <div className="text-left flex flex-col justify-center">
-              <span className="text-sm font-semibold text-slate-800 leading-tight">
+            <div className="text-left flex flex-col justify-center flex-1 min-w-0">
+              <span 
+                className="text-sm font-semibold text-slate-800 leading-tight truncate"
+                title={profile?.full_name || profile?.email || "User"}
+              >
                 {profile?.full_name || "Loading..."}
               </span>
-              <span className="text-xs text-slate-500 leading-tight">
-                {formatRole(profile?.role)}
-              </span>
+              <div className="mt-1">
+                {profile?.role ? <RoleBadge role={profile.role} size="sm" /> : <span className="text-xs text-slate-500">Loading...</span>}
+              </div>
             </div>
-            <ChevronDown size={16} className={`text-slate-400 ml-1 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown size={16} className={`text-slate-400 ml-1 flex-shrink-0 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {/* Dropdown Menu */}

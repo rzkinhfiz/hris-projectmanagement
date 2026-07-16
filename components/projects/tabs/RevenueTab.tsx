@@ -19,21 +19,22 @@ export function RevenueTab({ project }: RevenueTabProps) {
   // Form states
   const [termNumber, setTermNumber] = useState(1);
   const [billingCondition, setBillingCondition] = useState("");
-  const [termPercentage, setTermPercentage] = useState("");
+  const [targetAmountInput, setTargetAmountInput] = useState("");
   const [targetMonth, setTargetMonth] = useState("");
   const [picFinance, setPicFinance] = useState("");
+  const [formStatus, setFormStatus] = useState("UNBILLED");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Edit states
   const [editTermId, setEditTermId] = useState<string | null>(null);
   const [editCondition, setEditCondition] = useState("");
-  const [editPercentage, setEditPercentage] = useState("");
+  const [editAmount, setEditAmount] = useState("");
   const [editTargetMonth, setEditTargetMonth] = useState("");
+  const [editStatus, setEditStatus] = useState("");
   const [editReason, setEditReason] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-  const isPMO = profile?.role === "pmo" || profile?.role === "administrator" || profile?.role === "project_manager";
-  const isOnlyPM = profile?.role === "project_manager";
+  const canManageProjectOps = ['administrator', 'pmo', 'project_manager'].includes(profile?.role || '');
   const isStrictPMO = profile?.role === "pmo" || profile?.role === "administrator";
 
   useEffect(() => {
@@ -44,21 +45,21 @@ export function RevenueTab({ project }: RevenueTabProps) {
     setLoading(true);
     const { data } = await getInvoicingTerms(project.id);
     setTerms(data || []);
-    // Auto increment term number for new entry
     if (data && data.length > 0) {
       setTermNumber(Math.max(...data.map(t => t.term_number)) + 1);
     }
     setLoading(false);
   };
 
+  const contractValue = project.contract_value_excl_tax || 0;
+
   const handleCreateTerm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!billingCondition || !termPercentage || !targetMonth) return;
+    if (!billingCondition || !targetAmountInput || !targetMonth) return;
     
     setIsSubmitting(true);
-    const percentage = parseFloat(termPercentage) / 100;
-    const contractValue = project.contract_value_excl_tax || 0;
-    const targetAmount = contractValue * percentage;
+    const targetAmount = parseFloat(targetAmountInput) || 0;
+    const percentage = contractValue > 0 ? targetAmount / contractValue : 0;
 
     const { data, error } = await createInvoicingTerm({
       project_id: project.id,
@@ -67,7 +68,7 @@ export function RevenueTab({ project }: RevenueTabProps) {
       term_percentage: percentage,
       target_invoice_amount: targetAmount,
       target_month: targetMonth,
-      invoice_status: "unbilled",
+      invoice_status: formStatus.toLowerCase(),
       bast_date: null,
       pic_finance: picFinance || null,
     });
@@ -77,8 +78,9 @@ export function RevenueTab({ project }: RevenueTabProps) {
       setShowForm(false);
       setTermNumber(termNumber + 1);
       setBillingCondition("");
-      setTermPercentage("");
+      setTargetAmountInput("");
       setTargetMonth("");
+      setFormStatus("UNBILLED");
     }
     setIsSubmitting(false);
   };
@@ -86,8 +88,9 @@ export function RevenueTab({ project }: RevenueTabProps) {
   const handleStartEdit = (term: InvoicingTerm) => {
     setEditTermId(term.id);
     setEditCondition(term.billing_condition || "");
-    setEditPercentage(term.term_percentage ? (term.term_percentage * 100).toString() : "");
+    setEditAmount((term.target_invoice_amount || 0).toString());
     setEditTargetMonth(term.target_month ? new Date(term.target_month).toISOString().split('T')[0] : "");
+    setEditStatus((term.invoice_status || "unbilled").toUpperCase());
     setEditReason("");
   };
 
@@ -100,12 +103,13 @@ export function RevenueTab({ project }: RevenueTabProps) {
     const updates: Partial<InvoicingTerm> = {};
     if (editCondition !== term.billing_condition) updates.billing_condition = editCondition;
     if (editTargetMonth !== term.target_month) updates.target_month = editTargetMonth;
+    if (editStatus.toLowerCase() !== term.invoice_status) updates.invoice_status = editStatus.toLowerCase();
     
-    // Only PMO can edit percentage
-    if (isStrictPMO && parseFloat(editPercentage) / 100 !== term.term_percentage) {
-      const p = parseFloat(editPercentage) / 100;
+    const newAmount = parseFloat(editAmount) || 0;
+    if (isStrictPMO && newAmount !== term.target_invoice_amount) {
+      const p = contractValue > 0 ? newAmount / contractValue : 0;
       updates.term_percentage = p;
-      updates.target_invoice_amount = (project.contract_value_excl_tax || 0) * p;
+      updates.target_invoice_amount = newAmount;
     }
 
     if (Object.keys(updates).length > 0) {
@@ -126,9 +130,10 @@ export function RevenueTab({ project }: RevenueTabProps) {
   };
 
   const getStatusStyle = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case "paid": return "bg-emerald-100 text-emerald-700";
       case "invoiced": return "bg-blue-100 text-blue-700";
+      case "cancelled": return "bg-rose-100 text-rose-700";
       default: return "bg-slate-100 text-slate-700";
     }
   };
@@ -137,18 +142,19 @@ export function RevenueTab({ project }: RevenueTabProps) {
     return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-slate-400" /></div>;
   }
 
-  const totalPercentage = terms.reduce((sum, t) => sum + (t.term_percentage || 0), 0) * 100;
-  const remainingPercentage = Math.max(0, 100 - totalPercentage);
+  // Calculate live percentage
+  const parsedInput = parseFloat(targetAmountInput) || 0;
+  const livePercentage = contractValue > 0 ? (parsedInput / contractValue) * 100 : 0;
 
   return (
     <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 min-h-full">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h3 className="text-lg font-bold text-slate-800">Invoicing Terms & Revenue</h3>
-          <p className="text-sm text-slate-500">Contract Value: Rp {(project.contract_value_excl_tax || 0).toLocaleString()}</p>
+          <p className="text-sm text-slate-500">Contract Value: Rp {contractValue.toLocaleString()}</p>
         </div>
         
-        {isPMO && !showForm && remainingPercentage > 0 && (
+        {canManageProjectOps && !showForm && (
           <button 
             onClick={() => setShowForm(true)}
             className="flex items-center gap-2 bg-[var(--color-brand-orange)] hover:bg-orange-600 text-white px-4 py-2 rounded-full text-sm font-semibold transition"
@@ -171,17 +177,28 @@ export function RevenueTab({ project }: RevenueTabProps) {
               <input type="text" required value={billingCondition} onChange={(e) => setBillingCondition(e.target.value)} className="w-full bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-[var(--color-brand-orange)]" placeholder="e.g. Kick Off & Requirements Gathering" />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Percentage (%)</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Amount (Rp)</label>
               <div className="relative">
-                <input type="number" min="1" max={remainingPercentage} required value={termPercentage} onChange={(e) => setTermPercentage(e.target.value)} className="w-full bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-[var(--color-brand-orange)]" placeholder={`Max ${remainingPercentage}%`} />
-                <span className="absolute right-4 top-2 text-slate-400 text-sm">%</span>
+                <input type="number" min="1" required value={targetAmountInput} onChange={(e) => setTargetAmountInput(e.target.value)} className="w-full bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-[var(--color-brand-orange)]" placeholder="e.g. 5000000" />
               </div>
+              {livePercentage > 0 && (
+                <p className="text-amber-700 font-semibold text-xs mt-1">({livePercentage.toFixed(2)}% dari total nilai kontrak)</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+              <select value={formStatus} onChange={(e) => setFormStatus(e.target.value)} className={`w-full rounded-2xl border border-gray-200 p-3 text-sm transition focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500 ${!formStatus ? 'text-gray-600 font-medium' : 'text-gray-900 font-semibold'}`}>
+                 <option value="UNBILLED">UNBILLED</option>
+                 <option value="INVOICED">INVOICED</option>
+                 <option value="PAID">PAID</option>
+                 <option value="CANCELLED">CANCELLED</option>
+              </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Target Month</label>
-              <input type="date" required value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-[var(--color-brand-orange)]" />
+              <input type="date" required value={targetMonth} onChange={(e) => setTargetMonth(e.target.value)} className="w-full rounded-2xl border border-gray-200 p-3 text-sm text-gray-700 font-medium focus:text-gray-900 focus:border-amber-500 transition focus:outline-none focus:ring-1 focus:ring-amber-500" />
             </div>
-            <div className="col-span-2">
+            <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">PIC Finance (Optional)</label>
               <input type="text" value={picFinance} onChange={(e) => setPicFinance(e.target.value)} className="w-full bg-white text-slate-900 placeholder:text-slate-400 border border-slate-300 rounded-xl px-4 py-2 text-sm outline-none focus:border-[var(--color-brand-orange)]" placeholder="Name of finance PIC" />
             </div>
@@ -213,7 +230,7 @@ export function RevenueTab({ project }: RevenueTabProps) {
                 <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Amount (Rp)</th>
                 <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Target</th>
                 <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                {isPMO && <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>}
+                {canManageProjectOps && <th className="py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -226,21 +243,29 @@ export function RevenueTab({ project }: RevenueTabProps) {
                         <input type="text" value={editCondition} onChange={(e) => setEditCondition(e.target.value)} className="w-full bg-white border border-slate-200 rounded text-sm px-2 py-1 outline-none focus:border-[var(--color-brand-orange)]" />
                       </td>
                       <td className="py-4 px-4 text-right">
-                        {isStrictPMO ? (
-                          <input type="number" value={editPercentage} onChange={(e) => setEditPercentage(e.target.value)} className="w-16 bg-white border border-slate-200 rounded text-sm px-2 py-1 outline-none text-right focus:border-[var(--color-brand-orange)]" />
-                        ) : (
-                          <span className="text-sm font-medium text-slate-700">{(term.term_percentage * 100).toFixed(0)}%</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-4 text-sm font-bold text-[var(--color-brand-orange)] text-right">
-                         {(term.target_invoice_amount || 0).toLocaleString()}
+                        <span className="text-sm font-medium text-slate-700">{(term.term_percentage * 100).toFixed(0)}%</span>
                       </td>
                       <td className="py-4 px-4">
-                        <input type="date" value={editTargetMonth} onChange={(e) => setEditTargetMonth(e.target.value)} className="w-full bg-white border border-slate-200 rounded text-sm px-2 py-1 outline-none focus:border-[var(--color-brand-orange)]" />
+                        {isStrictPMO ? (
+                          <input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="w-24 bg-white border border-slate-200 rounded text-sm px-2 py-1 outline-none text-right focus:border-[var(--color-brand-orange)]" />
+                        ) : (
+                          <span className="text-sm font-bold text-[var(--color-brand-orange)] text-right block">{(term.target_invoice_amount || 0).toLocaleString()}</span>
+                        )}
                       </td>
-                      <td className="py-4 px-4" colSpan={2}>
+                      <td className="py-4 px-4">
+                        <input type="date" value={editTargetMonth} onChange={(e) => setEditTargetMonth(e.target.value)} className="w-full rounded border border-gray-200 p-1 text-sm text-gray-700 focus:text-gray-900 focus:border-amber-500 transition outline-none" />
+                      </td>
+                      <td className="py-4 px-4">
+                        <select value={editStatus} onChange={(e) => setEditStatus(e.target.value)} className="w-full rounded border border-gray-200 p-1 text-sm text-gray-900 focus:border-amber-500 transition outline-none">
+                           <option value="UNBILLED">UNBILLED</option>
+                           <option value="INVOICED">INVOICED</option>
+                           <option value="PAID">PAID</option>
+                           <option value="CANCELLED">CANCELLED</option>
+                        </select>
+                      </td>
+                      <td className="py-4 px-4" colSpan={1}>
                         <div className="flex flex-col gap-2">
-                           <input type="text" placeholder="Reason for update (Audit Trail)" required value={editReason} onChange={(e) => setEditReason(e.target.value)} className="w-full bg-white text-slate-900 placeholder:text-slate-400 border border-amber-300 rounded text-xs px-2 py-1 outline-none focus:border-amber-400" />
+                           <input type="text" placeholder="Reason (Audit)" required value={editReason} onChange={(e) => setEditReason(e.target.value)} className="w-full bg-white text-slate-900 placeholder:text-slate-400 border border-amber-300 rounded text-xs px-2 py-1 outline-none focus:border-amber-400" />
                            <div className="flex items-center gap-2 justify-end">
                              <button onClick={() => setEditTermId(null)} className="p-1 text-slate-400 hover:text-slate-600 rounded bg-white shadow-sm border border-slate-200"><X size={14}/></button>
                              <button onClick={() => handleSaveEdit(term)} disabled={isSavingEdit || !editReason} className="p-1 text-white bg-[var(--color-brand-orange)] hover:bg-orange-600 rounded shadow-sm disabled:opacity-50"><Check size={14}/></button>
@@ -268,15 +293,11 @@ export function RevenueTab({ project }: RevenueTabProps) {
                         {term.invoice_status}
                       </span>
                     </td>
-                    {isPMO && (
+                    {canManageProjectOps && (
                       <td className="py-4 px-4 text-right">
-                        {term.invoice_status === "unbilled" ? (
-                          <button onClick={() => handleStartEdit(term)} className="text-slate-400 hover:text-[var(--color-brand-orange)] transition">
-                            <Edit2 size={14} />
-                          </button>
-                        ) : (
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded">Locked</span>
-                        )}
+                        <button onClick={() => handleStartEdit(term)} className="text-slate-400 hover:text-[var(--color-brand-orange)] transition">
+                          <Edit2 size={14} />
+                        </button>
                       </td>
                     )}
                   </tr>

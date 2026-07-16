@@ -1,7 +1,7 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 import { getSupabaseClient } from "../lib/supabaseClient";
 import type { ProgressUpdate, Task, Workstream } from "../types";
-import { createAuditLog } from "./auditService";
+import { logProjectActivity } from "./auditService";
 
 type ServiceError = Error | PostgrestError | { message: string; code: string; details: string; hint: string };
 
@@ -129,17 +129,14 @@ export async function updateTaskProgress(
     .select("*")
     .maybeSingle();
 
-  const auditLogResult = await createAuditLog({
-    entity: "Task",
-    entity_id: taskId,
-    action: "UPDATE_PROGRESS",
-    performed_by: userData.user.id,
-    details: {
-      task_id: taskId,
-      progress,
-      note: note ?? null,
-      project_id: taskData.project_id,
-    },
+  const auditLogResult = await logProjectActivity({
+    project_id: taskData.project_id,
+    actor_id: userData.user.id,
+    module: "TASKS",
+    action_type: "UPDATE",
+    item_label: taskData.name,
+    old_data: { progress: taskData.progress }, // Ideally fetch old progress but we only have new here, or just save new
+    new_data: { progress, note: note ?? null },
   });
 
   if (auditLogResult.error) {
@@ -189,12 +186,13 @@ export async function createTask(
 
   if (error) return { data: null, error };
 
-  await createAuditLog({
-    entity: "Task",
-    entity_id: data.id,
-    action: "CREATE_TASK",
-    performed_by: userData.user.id,
-    details: { project_id: payload.project_id, name: payload.name }
+  await logProjectActivity({
+    project_id: payload.project_id,
+    actor_id: userData.user.id,
+    module: "TASKS",
+    action_type: "CREATE",
+    item_label: payload.name,
+    new_data: data
   });
 
   return { data: data as Task, error: null };
@@ -228,12 +226,13 @@ export async function updateTaskStatus(
     });
   }
 
-  await createAuditLog({
-    entity: "Task",
-    entity_id: taskId,
-    action: "UPDATE_TASK",
-    performed_by: userId,
-    details: { updated_fields: Object.keys(updates).join(', '), note: note || null }
+  await logProjectActivity({
+    project_id: data.project_id,
+    actor_id: userId,
+    module: "TASKS",
+    action_type: "UPDATE",
+    item_label: data.name,
+    new_data: { ...updates, note: note || null }
   });
 
   return { data: data as Task, error: null };
@@ -253,12 +252,12 @@ export async function deleteTask(
   if (error) return { error };
 
   if (task) {
-    await createAuditLog({
-      entity: "Task",
-      entity_id: taskId,
-      action: "DELETE_TASK",
-      performed_by: userId,
-      details: { project_id: task.project_id }
+    await logProjectActivity({
+      project_id: task.project_id,
+      actor_id: userId,
+      module: "TASKS",
+      action_type: "DELETE",
+      item_label: `Task ${taskId}`
     });
   }
 

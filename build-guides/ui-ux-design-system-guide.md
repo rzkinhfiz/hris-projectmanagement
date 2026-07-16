@@ -144,3 +144,15 @@ Pastikan `GovernancePanel` hanya render data read-only:
 - Fokus pada spacing `gap-5`, `p-6`, `rounded-3xl`.
 - Hindari editing controls di area Monitoring.
 - Terapkan responsive layout agar dashboard dapat tampil baik di desktop dan tablet.
+- **Form UI & Placeholder**: Saat membuat input form di fitur apapun, pastikan placeholder selalu terlihat jelas dengan kontras yang baik.
+  - Gunakan `placeholder:text-slate-400` atau `placeholder:text-slate-500` pada text/number/textarea input.
+  - Untuk elemen `<select>`, implementasikan dynamic class untuk membedakan gaya teks saat masih berupa placeholder vs nilai terpilih. Contoh:
+    ```tsx
+    <select 
+      value={value} 
+      onChange={...} 
+      className={`... focus:border-amber-500 focus:ring-1 focus:ring-amber-500 ${!value ? 'text-slate-500 font-medium' : 'text-slate-900 font-semibold'}`}
+    >
+      <option value="">-- Pilih Nilai --</option>
+    </select>
+    ```

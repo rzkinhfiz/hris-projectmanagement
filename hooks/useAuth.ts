@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -102,12 +103,20 @@ export function useAuth(): UseAuthResult {
     };
   }, []);
 
+  const router = useRouter();
+
   const signOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
     setUser(null);
     setRole(null);
     setProfile(null);
+    
+    router.refresh(); // Invalidate Next.js client-side router cache
+    
+    if (typeof window !== "undefined") {
+      window.location.href = "/"; // Hard navigation to clear DOM memory
+    }
   };
 
   return { user, role, profile, loading, signOut };

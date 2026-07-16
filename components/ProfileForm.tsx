@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Profile } from '@/types';
 import { updateUserProfile } from '@/services/userService';
 import { User } from 'lucide-react';
+import { RoleBadge } from './RoleBadge';
 
 type ProfileFormProps = {
   profile: Profile;
@@ -76,12 +77,9 @@ export function ProfileForm({ profile, userEmail }: ProfileFormProps) {
           
           <div>
             <label className={labelClass}>Current Role (Read-Only)</label>
-            <input 
-              type="text" 
-              value={profile.role.replace('_', ' ').toUpperCase()} 
-              disabled 
-              className="w-full bg-slate-100 border border-slate-200 text-slate-500 text-sm rounded-xl px-4 py-3 outline-none cursor-not-allowed font-semibold" 
-            />
+            <div className="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-xl px-4 py-3 flex items-center cursor-not-allowed">
+              <RoleBadge role={profile.role} size="md" />
+            </div>
           </div>
           
           <div>

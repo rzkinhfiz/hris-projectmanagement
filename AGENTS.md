@@ -43,6 +43,7 @@ This project uses a **Flat Folder** architecture directly at the root level for 
 - **Strictly No `any`**: All function parameters, states, and data responses from Supabase must have explicit data types or interfaces defined in `/types/index.ts`.
 - **Client vs Server Components**: Use React Server Components (RSC) by default for initial data fetching at the page level (`/app`). Use `'use client'` sparingly only for interactive leaf components.
 - **UI/UX Design**: Follow a warm color palette (warm tones), soft cream/neutral background, wide rounded corners for card panels (`rounded-3xl` or `rounded-[2rem]`), and subtle shadows (`shadow-xl`).
+- **Form UI/UX (Placeholders)**: Always ensure placeholders in forms (inputs, selects, textareas, dates) are clearly visible and have high contrast. Use dynamic styling for `<select>` so that empty/placeholder states are visually distinct (e.g., `!value ? 'text-slate-500 font-medium' : 'text-slate-900 font-semibold'`), and add `placeholder:text-slate-400` or `placeholder:text-slate-500` to all text/number inputs.
 
 ## 4. AGENT WORKFLOW BEFORE WRITING CODE
 

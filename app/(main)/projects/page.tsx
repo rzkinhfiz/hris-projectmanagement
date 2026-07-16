@@ -5,21 +5,25 @@ import Link from "next/link";
 import { FolderGit2, Search, ArrowRight, Clock, AlertTriangle, CheckCircle2, PlayCircle } from "lucide-react";
 import { getProjects } from "@/services/projectService";
 import type { Project } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function ProjectsPage() {
+  const { profile } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProjects = async () => {
-      const { data, error } = await getProjects();
-      if (error) console.error("Error fetching projects:", error);
-      console.log("Projects data:", data);
-      setProjects(data || []);
-      setLoading(false);
+      if (profile) {
+        const { data, error } = await getProjects(profile.id, profile.role || undefined);
+        if (error) console.error("Error fetching projects:", error);
+        console.log("Projects data:", data);
+        setProjects(data || []);
+        setLoading(false);
+      }
     };
     fetchProjects();
-  }, []);
+  }, [profile]);
 
   const getStatusStyle = (status: string) => {
     switch (status.toLowerCase()) {
