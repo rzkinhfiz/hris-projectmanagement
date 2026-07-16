@@ -87,7 +87,8 @@ export default function TimeLogPage() {
     const { data: userTasks, error } = await supabase
       .from("tasks")
       .select("id, name, project_id, projects!inner(id, name)")
-      .eq("owner_id", profile?.id);
+      .eq("owner_id", profile?.id)
+      .in('status', ['IN_PROGRESS', 'REVIEW']);
 
     if (error || !userTasks) return;
 

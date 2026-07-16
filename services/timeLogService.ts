@@ -43,6 +43,7 @@ export async function getAssignedTasksForDateRange(profileId: string, startDate:
       projects!inner(name)
     `)
     .eq('owner_id', profileId)
+    .in('status', ['IN_PROGRESS', 'REVIEW'])
     .lte('planned_start', endStr)
     .gte('planned_end', startStr);
 

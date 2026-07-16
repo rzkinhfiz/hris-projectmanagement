@@ -113,15 +113,21 @@ export function GanttChart({ tasks, profiles, canEditDates, onTaskClick }: Gantt
 
   const getStatusColor = (task: TaskWithWorkstream) => {
     const isOverdue = task.planned_end && 
-                      isBefore(new Date(task.planned_end), new Date()) && 
+                      isBefore(new Date(task.planned_end), startOfDay(new Date())) && 
                       task.progress < 100 &&
-                      task.status !== 'Completed';
+                      task.status !== 'DONE';
 
     if (isOverdue) return { bg: 'bg-red-500', border: 'border-red-600', fill: 'bg-red-700' };
-    if (task.status === 'Completed') return { bg: 'bg-emerald-500', border: 'border-emerald-600', fill: 'bg-emerald-700' };
     
-    // In Progress / To Do
-    return { bg: 'bg-[var(--color-brand-orange)]', border: 'border-orange-600', fill: 'bg-orange-700' };
+    switch(task.status) {
+      case 'DRAFT': return { bg: 'bg-slate-400', border: 'border-slate-500', fill: 'bg-slate-600' };
+      case 'BACKLOG': return { bg: 'bg-orange-300', border: 'border-orange-400', fill: 'bg-orange-500' };
+      case 'TO_DO': return { bg: 'bg-sky-400', border: 'border-sky-500', fill: 'bg-sky-600' };
+      case 'IN_PROGRESS': return { bg: 'bg-amber-400', border: 'border-amber-500', fill: 'bg-amber-600' };
+      case 'REVIEW': return { bg: 'bg-purple-400', border: 'border-purple-500', fill: 'bg-purple-600' };
+      case 'DONE': return { bg: 'bg-emerald-500', border: 'border-emerald-600', fill: 'bg-emerald-700' };
+      default: return { bg: 'bg-[var(--color-brand-orange)]', border: 'border-orange-600', fill: 'bg-orange-700' };
+    }
   };
 
   const handleTaskClick = (task: TaskWithWorkstream) => {
@@ -220,30 +226,26 @@ export function GanttChart({ tasks, profiles, canEditDates, onTaskClick }: Gantt
                       className={`absolute top-2.5 h-9 rounded-lg shadow-sm border ${colors.border} ${colors.bg} cursor-pointer group/bar`}
                       style={{ 
                         left: `${bounds.left}px`, 
-                        width: task.is_milestone ? '36px' : `${Math.max(bounds.width, 20)}px`,
-                        transform: task.is_milestone ? 'translateX(-18px)' : 'none'
+                        width: `${Math.max(bounds.width, 20)}px`
                       }}
                       onClick={() => handleTaskClick(task)}
                     >
-                      {task.is_milestone ? (
-                        <div className="w-full h-full flex items-center justify-center bg-purple-500 border border-purple-600 rounded shadow-md transform rotate-45 scale-75">
-                          <Flag size={14} className="text-white transform -rotate-45" />
-                        </div>
-                      ) : (
-                        <>
-                          {/* Inner Progress Fill */}
-                          <div 
-                            className={`absolute top-0 left-0 bottom-0 ${colors.fill} rounded-l-lg opacity-80`}
-                            style={{ width: `${task.progress}%`, borderTopRightRadius: task.progress === 100 ? '0.5rem' : '0', borderBottomRightRadius: task.progress === 100 ? '0.5rem' : '0' }}
-                          />
-                          <div className="absolute inset-0 flex items-center px-2 text-[10px] font-bold text-white z-10 truncate drop-shadow-md pointer-events-none">
-                            {task.progress}%
+                      {/* Inner Progress Fill */}
+                      <div 
+                        className={`absolute top-0 left-0 bottom-0 ${colors.fill} rounded-l-lg opacity-80`}
+                        style={{ width: `${task.progress}%`, borderTopRightRadius: task.progress === 100 ? '0.5rem' : '0', borderBottomRightRadius: task.progress === 100 ? '0.5rem' : '0' }}
+                      />
+                      <div className="absolute inset-0 flex items-center px-2 text-[10px] font-bold text-white z-10 truncate drop-shadow-md pointer-events-none gap-1.5">
+                        {task.is_milestone && (
+                          <div className="w-4 h-4 flex-shrink-0 flex items-center justify-center bg-purple-500 border border-purple-600 rounded-[3px] transform rotate-45 ml-1">
+                            <Flag size={8} className="text-white transform -rotate-45" />
                           </div>
-                        </>
-                      )}
+                        )}
+                        <span>{task.progress}%</span>
+                      </div>
 
                       {/* Hover Tooltip (Popover) */}
-                      <div className="absolute opacity-0 group-hover/bar:opacity-100 pointer-events-none transition-opacity z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-slate-800 text-white p-3 rounded-xl shadow-2xl border border-slate-700">
+                      <div className={`absolute opacity-0 group-hover/bar:opacity-100 pointer-events-none transition-opacity z-50 ${idx < 2 ? 'top-full mt-2' : 'bottom-full mb-2'} left-1/2 -translate-x-1/2 w-56 bg-slate-800 text-white p-3 rounded-xl shadow-2xl border border-slate-700`}>
                         <div className="font-bold text-sm mb-1 truncate">{task.name}</div>
                         <div className="text-[10px] text-slate-300 mb-2">{task.owner_id ? profiles[task.owner_id]?.full_name : 'Unassigned'}</div>
                         <div className="flex flex-col gap-1 text-[10px]">
@@ -260,7 +262,7 @@ export function GanttChart({ tasks, profiles, canEditDates, onTaskClick }: Gantt
                             <span className="font-medium">{task.progress}%</span>
                           </div>
                         </div>
-                        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-800 transform rotate-45 border-r border-b border-slate-700"></div>
+                        <div className={`absolute left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-800 transform rotate-45 border-slate-700 ${idx < 2 ? '-top-1.5 border-t border-l' : '-bottom-1.5 border-r border-b'}`}></div>
                       </div>
                     </div>
                   </div>

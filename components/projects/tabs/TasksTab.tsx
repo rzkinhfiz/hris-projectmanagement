@@ -14,6 +14,9 @@ import {
   CheckSquare, Search, Plus, Calendar, MoreHorizontal, 
   List, Kanban, Clock, Filter, Flag, Check, Pencil, Trash2
 } from 'lucide-react';
+import { KanbanBoard } from '@/components/tasks/KanbanBoard';
+import { TaskStatusBadge } from '@/components/tasks/TaskStatusBadge';
+import type { TaskStatus } from '@/types';
 
 interface TasksTabProps {
   project: Project;
@@ -22,7 +25,7 @@ interface TasksTabProps {
 type ViewMode = 'list' | 'kanban' | 'gantt';
 
 // --- ActionMenu Internal Component ---
-function ActionMenu({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => void }) {
+export function ActionMenu({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Close menu when clicking outside
@@ -64,7 +67,7 @@ function ActionMenu({ onEdit, onDelete }: { onEdit: () => void, onDelete: () => 
 // -----------------------------------------
 
 // --- ProgressSlider Internal Component ---
-function ProgressSlider({ 
+export function ProgressSlider({ 
   taskId, 
   initialProgress, 
   disabled, 
@@ -214,7 +217,7 @@ export function TasksTab({ project }: TasksTabProps) {
     setUpdatingTaskId(null);
   };
 
-  const handleUpdateStatus = async (taskId: string, newStatus: string) => {
+  const handleUpdateStatus = async (taskId: string, newStatus: TaskStatus) => {
     if (!currentUser) return;
     setUpdatingTaskId(taskId);
     await updateTaskStatus(taskId, { status: newStatus }, currentUser.id, `Status updated to ${newStatus}`);
@@ -231,11 +234,7 @@ export function TasksTab({ project }: TasksTabProps) {
     return matchesSearch && matchesAssignee && matchesPriority;
   });
 
-  const columns = [
-    { id: "To Do", title: "To Do", color: "bg-slate-200 text-slate-700" },
-    { id: "In Progress", title: "In Progress", color: "bg-blue-100 text-blue-700" },
-    { id: "Completed", title: "Completed", color: "bg-emerald-100 text-emerald-700" }
-  ];
+
 
   return (
     <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 flex flex-col h-full min-h-[600px]">
@@ -313,101 +312,23 @@ export function TasksTab({ project }: TasksTabProps) {
       ) : (
         <div className="flex-1 overflow-x-auto flex flex-col gap-6">
           {viewMode === 'kanban' && (
-            <div className="flex gap-6 pb-4 h-full min-h-[400px]">
-              {columns.map(column => (
-                <div key={column.id} className="flex-1 min-w-[320px] bg-slate-50/80 rounded-2xl p-4 flex flex-col border border-slate-100">
-                  <div className="flex items-center justify-between mb-4 px-1 border-b border-slate-200 pb-3">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-slate-800">{column.title}</h3>
-                      <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold ${column.color}`}>
-                        {filteredTasks.filter(t => t.status === column.id).length}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-1">
-                    {filteredTasks.filter(t => t.status === column.id).map(task => {
-                      const ownerName = getOwnerName(task.owner_id);
-                      const isOwner = currentUser?.id === task.owner_id;
-                      const isProjectPM = currentUser?.role === 'project_manager' && project.pm_id === currentUser?.id;
-                      const canEdit = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM || isOwner;
-                      const canManageTask = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM;
-                      
-                      return (
-                        <div key={task.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-slate-300 transition group relative">
-                          {updatingTaskId === task.id && (
-                            <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 rounded-xl flex items-center justify-center">
-                              <div className="w-5 h-5 border-2 border-[var(--color-brand-orange)] border-t-transparent rounded-full animate-spin"></div>
-                            </div>
-                          )}
-                          
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${getPriorityColor(task.priority)}`}>
-                                {task.priority}
-                              </span>
-                              {task.is_milestone && (
-                                <span className="text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-md flex items-center gap-1">
-                                  <Flag size={10} /> Milestone
-                                </span>
-                              )}
-                            </div>
-                            
-                            <RoleGuard currentRole={currentUser?.role || ''} allowed={["administrator", "pmo", "project_manager"]}>
-                              {canManageTask && (
-                                <ActionMenu 
-                                  onEdit={() => setEditingTask(task)}
-                                  onDelete={() => handleDeleteTask(task.id)}
-                                />
-                              )}
-                            </RoleGuard>
-                          </div>
-                          
-                          <h4 className="font-bold text-slate-800 text-sm mb-3 leading-snug">{task.name}</h4>
-                          
-                          <div className="mb-4">
-                            <ProgressSlider 
-                              taskId={task.id}
-                              initialProgress={task.progress}
-                              disabled={!canEdit}
-                              onSave={async (id, progress) => {
-                                // Background API call, don't set updatingTaskId
-                                if (!currentUser) return;
-                                await updateTaskStatus(id, { progress }, currentUser.id, "Progress updated via slider");
-                                // We manually mutate the local task to keep it in sync across views
-                                setTasks(prev => prev.map(t => t.id === id ? { ...t, progress } : t));
-                              }}
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-2">
-                            <div className="flex flex-col gap-1.5">
-                              <div className="flex items-center text-xs text-slate-500 gap-1.5 font-medium">
-                                <Calendar size={14} className="text-slate-400" />
-                                {task.planned_end ? new Date(task.planned_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'No Due'}
-                              </div>
-                              <div className="flex items-center text-[11px] text-slate-400 font-medium">
-                                ⏳ {task.actual_hours}h / {task.estimated_hours}h
-                              </div>
-                            </div>
-                            
-                            <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold border border-slate-200 shadow-sm" title={ownerName}>
-                              {getInitials(ownerName)}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    {filteredTasks.filter(t => t.status === column.id).length === 0 && (
-                      <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl p-8">
-                        <span className="text-sm text-slate-400 font-medium text-center">No tasks in this stage</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <KanbanBoard 
+              tasks={filteredTasks}
+              project={project}
+              currentUser={currentUser}
+              updatingTaskId={updatingTaskId}
+              onUpdateStatus={async (id, newStatus) => {
+                await updateTaskStatus(id, { status: newStatus }, currentUser?.id || "", `Status updated to ${newStatus}`);
+                setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus } : t));
+              }}
+              onUpdateProgress={async (id, progress) => {
+                await updateTaskStatus(id, { progress }, currentUser?.id || "", "Progress updated via slider");
+                setTasks(prev => prev.map(t => t.id === id ? { ...t, progress } : t));
+              }}
+              onEditTask={(task) => setEditingTask(task)}
+              onDeleteTask={handleDeleteTask}
+              getOwnerName={getOwnerName}
+            />
           )}
 
           {viewMode === 'list' && (
@@ -428,7 +349,9 @@ export function TasksTab({ project }: TasksTabProps) {
                   {filteredTasks.map(task => {
                     const isOwner = currentUser?.id === task.owner_id;
                     const isProjectPM = currentUser?.role === 'project_manager' && project.pm_id === currentUser?.id;
-                    const canEdit = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM || isOwner;
+                    const isProjectTeam = currentUser?.role === 'project_team';
+                    const isLockedForTeam = isProjectTeam && (task.status === 'REVIEW' || task.status === 'DONE');
+                    const canEdit = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM || (isOwner && !isLockedForTeam);
                     const canManageTask = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM;
                     return (
                     <tr key={task.id} className="hover:bg-slate-50/50 transition">
@@ -442,12 +365,23 @@ export function TasksTab({ project }: TasksTabProps) {
                         <select 
                           value={task.status}
                           disabled={!canEdit}
-                          onChange={(e) => handleUpdateStatus(task.id, e.target.value)}
+                          onChange={(e) => {
+                            const newStatus = e.target.value as TaskStatus;
+                            const isProjectTeam = currentUser?.role === 'project_team';
+                            if (isProjectTeam && (newStatus === 'DONE' || newStatus === 'DRAFT')) {
+                              alert("⚖️ Hanya Project Manager yang dapat mengubah tugas ke status Done atau Draft");
+                              return;
+                            }
+                            handleUpdateStatus(task.id, newStatus);
+                          }}
                           className="text-xs font-bold text-slate-700 px-2.5 py-1 rounded-md border border-slate-200 bg-white outline-none cursor-pointer disabled:opacity-50"
                         >
-                          <option value="To Do">To Do</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Completed">Completed</option>
+                          <option value="DRAFT" disabled={isProjectTeam}>Draft</option>
+                          <option value="BACKLOG">Backlog</option>
+                          <option value="TO_DO">To Do</option>
+                          <option value="IN_PROGRESS">In Progress</option>
+                          <option value="REVIEW">Review</option>
+                          <option value="DONE" disabled={isProjectTeam}>Done</option>
                         </select>
                       </td>
                       <td className="p-4">

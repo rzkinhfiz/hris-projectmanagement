@@ -81,6 +81,8 @@ export interface Workstream {
   updated_at: string;
 }
 
+export type TaskStatus = 'DRAFT' | 'BACKLOG' | 'TO_DO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
+
 export interface Task {
   id: string;
   project_id: string;
@@ -92,7 +94,7 @@ export interface Task {
   actual_start: string | null;
   actual_end: string | null;
   progress: number;
-  status: string;
+  status: TaskStatus;
   priority: string;
   is_milestone: boolean;
   predecessor_task_id: string | null;

@@ -5,7 +5,7 @@ import { CheckSquare, Search, Calendar, MoreHorizontal, List, Kanban, Check, Tra
 import { getAllTasks, updateTaskStatus, deleteTask } from "@/services/taskService";
 import { createClient } from "@/utils/supabase/client";
 import type { TaskWithWorkstream } from "@/services/taskService";
-import type { Profile } from "@/types";
+import type { Profile, TaskStatus } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { RoleGuard } from "@/components/RoleGuard";
 
@@ -192,7 +192,7 @@ export default function TasksPage() {
     fetchData();
   };
 
-  const handleUpdateStatus = async (taskId: string, newStatus: string) => {
+  const handleUpdateStatus = async (taskId: string, newStatus: TaskStatus) => {
     if (!currentUser) return;
     setUpdatingTaskId(taskId);
     await updateTaskStatus(taskId, { status: newStatus }, currentUser.id, `Status updated to ${newStatus}`);
@@ -211,9 +211,12 @@ export default function TasksPage() {
   });
 
   const columns = [
-    { id: "To Do", title: "To Do", color: "bg-slate-200 text-slate-700" },
-    { id: "In Progress", title: "In Progress", color: "bg-blue-100 text-blue-700" },
-    { id: "Completed", title: "Completed", color: "bg-emerald-100 text-emerald-700" }
+    { id: 'DRAFT', title: 'Draft', color: 'bg-slate-100 text-slate-700' },
+    { id: 'BACKLOG', title: 'Backlog', color: 'bg-orange-100 text-orange-700' },
+    { id: 'TO_DO', title: 'To Do', color: 'bg-sky-100 text-sky-700' },
+    { id: 'IN_PROGRESS', title: 'In Progress', color: 'bg-amber-100 text-amber-700' },
+    { id: 'REVIEW', title: 'Review', color: 'bg-purple-100 text-purple-700' },
+    { id: 'DONE', title: 'Done', color: 'bg-emerald-100 text-emerald-700' }
   ];
 
   return (
@@ -294,7 +297,9 @@ export default function TasksPage() {
                       const isOwner = currentUser?.id === task.owner_id;
                       const projectPm = projects[task.project_id]?.pm_id;
                       const isProjectPM = currentUser?.role === 'project_manager' && projectPm === currentUser?.id;
-                      const canEdit = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM || isOwner;
+                      const isProjectTeam = currentUser?.role === 'project_team';
+                      const isLockedForTeam = isProjectTeam && (task.status === 'REVIEW' || task.status === 'DONE');
+                      const canEdit = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM || (isOwner && !isLockedForTeam);
                       const canManageTask = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM;
                       
                       return (
@@ -392,7 +397,9 @@ export default function TasksPage() {
                     const isOwner = currentUser?.id === task.owner_id;
                     const projectPm = projects[task.project_id]?.pm_id;
                     const isProjectPM = currentUser?.role === 'project_manager' && projectPm === currentUser?.id;
-                    const canEdit = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM || isOwner;
+                    const isProjectTeam = currentUser?.role === 'project_team';
+                    const isLockedForTeam = isProjectTeam && (task.status === 'REVIEW' || task.status === 'DONE');
+                    const canEdit = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM || (isOwner && !isLockedForTeam);
                     const canManageTask = currentUser?.role === 'administrator' || currentUser?.role === 'pmo' || isProjectPM;
                     return (
                     <tr key={task.id} className="hover:bg-slate-50/50 transition">
@@ -411,12 +418,23 @@ export default function TasksPage() {
                         <select 
                           value={task.status}
                           disabled={!canEdit}
-                          onChange={(e) => handleUpdateStatus(task.id, e.target.value)}
+                          onChange={(e) => {
+                            const newStatus = e.target.value as TaskStatus;
+                            const isProjectTeam = currentUser?.role === 'project_team';
+                            if (isProjectTeam && (newStatus === 'DONE' || newStatus === 'DRAFT')) {
+                              alert("⚖️ Hanya Project Manager yang dapat mengubah tugas ke status Done atau Draft");
+                              return;
+                            }
+                            handleUpdateStatus(task.id, newStatus);
+                          }}
                           className="text-xs font-bold text-slate-700 px-2.5 py-1 rounded-md border border-slate-200 bg-white outline-none cursor-pointer disabled:opacity-50"
                         >
-                          <option value="To Do">To Do</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Completed">Completed</option>
+                          <option value="DRAFT" disabled={currentUser?.role === 'project_team'}>Draft</option>
+                          <option value="BACKLOG">Backlog</option>
+                          <option value="TO_DO">To Do</option>
+                          <option value="IN_PROGRESS">In Progress</option>
+                          <option value="REVIEW">Review</option>
+                          <option value="DONE" disabled={currentUser?.role === 'project_team'}>Done</option>
                         </select>
                       </td>
                       <td className="p-4">
