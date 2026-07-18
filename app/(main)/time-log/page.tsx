@@ -20,6 +20,7 @@ interface TaskOption {
   id: string;
   name: string;
   project_id: string;
+  status: string;
 }
 
 interface ProjectOption {
@@ -86,9 +87,9 @@ export default function TimeLogPage() {
     // Get tasks where user is owner, and their projects
     const { data: userTasks, error } = await supabase
       .from("tasks")
-      .select("id, name, project_id, projects!inner(id, name)")
+      .select("id, name, project_id, status, projects!inner(id, name)")
       .eq("owner_id", profile?.id)
-      .in('status', ['IN_PROGRESS', 'REVIEW']);
+      .in('status', ['TODO', 'IN_PROGRESS', 'REVIEW']);
 
     if (error || !userTasks) return;
 
@@ -99,7 +100,7 @@ export default function TimeLogPage() {
       if (t.projects) {
         uniqueProjects.set(t.project_id, { id: t.project_id, name: t.projects.name });
       }
-      taskList.push({ id: t.id, name: t.name, project_id: t.project_id });
+      taskList.push({ id: t.id, name: t.name, project_id: t.project_id, status: t.status });
     });
 
     setProjects(Array.from(uniqueProjects.values()));
@@ -447,17 +448,24 @@ export default function TimeLogPage() {
                           </td>
                           <td className="p-4 align-top">
                             {row.isCustom !== false ? (
-                              <select 
-                                value={row.taskId}
-                                onChange={(e) => updateRow(rowIndex, 'taskId', e.target.value)}
-                                disabled={!row.projectId}
-                                className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none transition focus:border-[var(--color-brand-orange)] focus:ring-1 focus:ring-[var(--color-brand-orange)] disabled:opacity-50 ${row.taskId ? 'text-slate-900 font-semibold' : 'text-slate-500 font-medium'}`}
-                              >
-                                <option value="">Select Task...</option>
-                                {tasks.filter(t => t.project_id === row.projectId).map(t => (
-                                  <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                              </select>
+                              <div className="flex flex-col gap-2">
+                                <select 
+                                  value={row.taskId}
+                                  onChange={(e) => updateRow(rowIndex, 'taskId', e.target.value)}
+                                  disabled={!row.projectId}
+                                  className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none transition focus:border-[var(--color-brand-orange)] focus:ring-1 focus:ring-[var(--color-brand-orange)] disabled:opacity-50 ${row.taskId ? 'text-slate-900 font-semibold' : 'text-slate-500 font-medium'}`}
+                                >
+                                  <option value="">Select Task...</option>
+                                  {tasks.filter(t => t.project_id === row.projectId).map(t => (
+                                    <option key={t.id} value={t.id}>{t.name} [{t.status.replace('_', ' ')}]</option>
+                                  ))}
+                                </select>
+                                {tasks.find(t => t.id === row.taskId)?.status === 'TODO' && (
+                                  <div className="bg-amber-50 text-amber-800 p-3 rounded-xl border border-amber-200 text-[11px] font-medium leading-relaxed">
+                                    💡 Catatan: Tugas ini masih berstatus To-Do. Saat Time Log ini di-submit, sistem akan otomatis menggeser status tugas Anda menjadi In Progress.
+                                  </div>
+                                )}
+                              </div>
                             ) : (
                               <div className="flex flex-col gap-2">
                                 <span className="font-bold text-slate-800 text-sm leading-tight">

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import type { Project, Profile } from '@/types';
 import type { TaskWithWorkstream } from '@/services/taskService';
 import { getTasksByProject, updateTaskStatus, deleteTask } from '@/services/taskService';
@@ -146,6 +147,9 @@ export function ProgressSlider({
 // -----------------------------------------
 
 export function TasksTab({ project }: TasksTabProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const { profile: currentUser } = useAuth();
   const [tasks, setTasks] = useState<TaskWithWorkstream[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
@@ -158,6 +162,7 @@ export function TasksTab({ project }: TasksTabProps) {
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskWithWorkstream | null>(null);
+  const [viewingTask, setViewingTask] = useState<TaskWithWorkstream | null>(null);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
 
   const handleDeleteTask = async (taskId: string) => {
@@ -187,6 +192,20 @@ export function TasksTab({ project }: TasksTabProps) {
   useEffect(() => {
     fetchData();
   }, [project.id]);
+
+  useEffect(() => {
+    if (!loading && tasks.length > 0) {
+      const targetTaskId = searchParams.get('taskId');
+      if (targetTaskId) {
+        const foundTask = tasks.find(t => t.id === targetTaskId);
+        if (foundTask) {
+          setViewingTask(foundTask);
+        }
+        // Hapus parameter taskId dari URL tanpa me-reload halaman
+        router.replace(pathname, { scroll: false });
+      }
+    }
+  }, [loading, tasks, searchParams, pathname, router]);
 
   const getOwnerName = (ownerId: string | null) => {
     if (!ownerId || !profiles[ownerId]) return "Unassigned";
@@ -458,16 +477,18 @@ export function TasksTab({ project }: TasksTabProps) {
         />
       )}
 
-      {editingTask && currentUser && (
+      {(editingTask || viewingTask) && currentUser && (
         <EditTaskModal 
-          task={editingTask}
+          task={(editingTask || viewingTask)!}
           projectTeamProfiles={profiles}
           currentUserId={currentUser.id}
-          onClose={() => setEditingTask(null)}
+          onClose={() => { setEditingTask(null); setViewingTask(null); }}
           onSuccess={() => {
             setEditingTask(null);
+            setViewingTask(null);
             fetchData();
           }}
+          readOnly={!!viewingTask}
         />
       )}
     </div>

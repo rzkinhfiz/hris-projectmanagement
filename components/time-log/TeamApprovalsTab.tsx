@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks } from "date-fns";
-import { Clock, Check, X, Search, Filter, RefreshCcw, ChevronDown, ChevronRight, ChevronLeft, AlertTriangle } from "lucide-react";
+import { Clock, Check, X, Search, Filter, RefreshCcw, ChevronDown, ChevronRight, ChevronLeft, AlertTriangle, ShieldAlert } from "lucide-react";
 import { getTeamTimeLogs, approveOrRejectTimeLog, requestTimeLogRevision } from "@/services/timeLogService";
 import { RoleBadge } from "@/components/RoleBadge";
+import { ExecutiveOverrideModal } from "./ExecutiveOverrideModal";
 import type { TimeLog, TimeLogStatus, TeamTimeLogFilters } from "@/types";
 
 interface TeamApprovalsTabProps {
@@ -37,6 +38,13 @@ export function TeamApprovalsTab({ profile }: TeamApprovalsTabProps) {
   const [revisionProposedHours, setRevisionProposedHours] = useState("");
   const [revisionNotes, setRevisionNotes] = useState("");
 
+  const [overrideModalOpen, setOverrideModalOpen] = useState(false);
+  const [overrideLogId, setOverrideLogId] = useState<string | null>(null);
+  const [overrideTaskId, setOverrideTaskId] = useState<string | null>(null);
+  const [overrideProjectName, setOverrideProjectName] = useState("");
+  const [overridePmName, setOverridePmName] = useState("");
+  const [isApproving, setIsApproving] = useState(false);
+
   const fetchLogs = async () => {
     if (!profile) return;
     setLoading(true);
@@ -68,9 +76,30 @@ export function TeamApprovalsTab({ profile }: TeamApprovalsTabProps) {
     fetchLogs();
   }, [profile, activeSubTab, selectedUserId, selectedProjectId, currentWeekStart, useDateFilter]);
 
-  const handleApprove = async (logId: string, taskId: string) => {
-    const { error } = await approveOrRejectTimeLog(logId, 'APPROVED', null, taskId);
+  const handleApproveClick = (log: TimeLog) => {
+    // Check if executive override is needed
+    if ((profile?.role === 'pmo' || profile?.role === 'administrator') && log.project?.pm_id !== profile.id) {
+      const pmName = allUsers.find(u => u.id === log.project?.pm_id)?.name || "Unknown PM";
+      setOverrideProjectName(log.project?.name || "Unknown Project");
+      setOverridePmName(pmName);
+      setOverrideLogId(log.id);
+      setOverrideTaskId(log.task_id);
+      setOverrideModalOpen(true);
+    } else {
+      executeApprove(log.id, log.task_id);
+    }
+  };
+
+  const executeApprove = async (logId: string, taskId: string) => {
+    setIsApproving(true);
+    const { error } = await approveOrRejectTimeLog(logId, 'APPROVED', null, taskId, {
+      id: profile.id,
+      name: profile.full_name,
+      role: profile.role
+    });
+    setIsApproving(false);
     if (!error) {
+      setOverrideModalOpen(false);
       fetchLogs();
     } else {
       alert(`Failed to approve: ${error.message || JSON.stringify(error)}`);
@@ -243,9 +272,14 @@ export function TeamApprovalsTab({ profile }: TeamApprovalsTabProps) {
                         </div>
                       </td>
                       <td className="p-4 align-top">
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1 items-start">
                           <span className="font-semibold text-slate-700 text-sm">{log.project?.name}</span>
                           <span className="text-sm text-slate-500">{task?.name}</span>
+                          {log.project?.pm_id !== profile?.id && (profile?.role === 'pmo' || profile?.role === 'administrator') && (
+                            <span className="mt-1 inline-flex items-center gap-1 bg-sky-50 text-sky-700 px-2 py-0.5 rounded-full text-[10px] font-bold border border-sky-200">
+                              <ShieldAlert size={10} /> Executive Oversight (PM: {allUsers.find(u => u.id === log.project?.pm_id)?.name || 'Unknown'})
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="p-4 align-top">
@@ -267,7 +301,7 @@ export function TeamApprovalsTab({ profile }: TeamApprovalsTabProps) {
                           <div className="flex items-center justify-end gap-2">
                             {log.status === 'SUBMITTED' && (
                               <>
-                                <button onClick={() => handleApprove(log.id, log.task_id)} className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition" title="Approve"><Check size={16} /></button>
+                                <button onClick={() => handleApproveClick(log)} className="p-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition" title="Approve"><Check size={16} /></button>
                                 <button onClick={() => { setSelectedLogId(log.id); setSelectedTaskId(log.task_id); setRejectReason(""); setRejectModalOpen(true); }} className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg border border-rose-200 transition" title="Reject"><X size={16} /></button>
                                 <button onClick={() => { setSelectedLogId(log.id); setSelectedTaskId(log.task_id); setRevisionProposedHours(""); setRevisionNotes(""); setRevisionModalOpen(true); }} className="p-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg border border-amber-200 transition" title="Request Revision">💬</button>
                               </>
@@ -413,6 +447,20 @@ export function TeamApprovalsTab({ profile }: TeamApprovalsTabProps) {
           </div>
         </div>
       )}
+
+      {/* Executive Override Modal */}
+      <ExecutiveOverrideModal 
+        isOpen={overrideModalOpen}
+        projectName={overrideProjectName}
+        pmName={overridePmName}
+        isSubmitting={isApproving}
+        onConfirm={() => {
+          if (overrideLogId && overrideTaskId) {
+            executeApprove(overrideLogId, overrideTaskId);
+          }
+        }}
+        onCancel={() => setOverrideModalOpen(false)}
+      />
 
     </div>
   );

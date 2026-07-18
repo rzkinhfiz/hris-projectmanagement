@@ -1,6 +1,7 @@
 import { getSupabaseClient } from "../lib/supabaseClient";
 import type { TimeLog, TimeLogPayload, TimeLogStatus } from "../types";
-import { format } from "date-fns";
+import { format, startOfWeek, endOfWeek } from 'date-fns';
+import { logProjectActivity } from './auditService';
 
 export async function getMyWeeklyLogs(profileId: string, startDate: Date, endDate: Date) {
   const supabase = getSupabaseClient();
@@ -43,7 +44,7 @@ export async function getAssignedTasksForDateRange(profileId: string, startDate:
       projects!inner(name)
     `)
     .eq('owner_id', profileId)
-    .in('status', ['IN_PROGRESS', 'REVIEW'])
+    .in('status', ['TODO', 'IN_PROGRESS', 'REVIEW'])
     .lte('planned_start', endStr)
     .gte('planned_end', startStr);
 
@@ -60,12 +61,12 @@ export async function getTeamTimeLogs(profileId: string, role: string, filters?:
       *,
       project:projects!inner(name, code, pm_id),
       task:tasks(name, estimated_hours, actual_hours, progress, planned_start, planned_end),
-      profile:profiles(full_name, role, status)
+      profile:profiles!profile_id(full_name, role, status)
     `);
 
   // Apply PM filtering if applicable
   if (role === 'project_manager') {
-    query = query.eq('project.pm_id', profileId);
+    query = query.eq('projects.pm_id', profileId);
   }
 
   // Apply filters
@@ -96,6 +97,9 @@ export async function getTeamTimeLogs(profileId: string, role: string, filters?:
   }
 
   const { data, error } = await query.order('log_date', { ascending: false });
+  if (error) {
+    console.error("getTeamTimeLogs error:", error);
+  }
   return { data: (data as unknown as TimeLog[]) || [], error };
 }
 
@@ -132,6 +136,14 @@ export async function saveTimeLogEntry(profileId: string, payload: TimeLogPayloa
         updated_at: new Date().toISOString()
       })
       .eq('id', existing.id);
+      
+    if (!error && payload.task_id) {
+      const { data: taskData } = await supabase.from('tasks').select('status').eq('id', payload.task_id).single();
+      if (taskData?.status === 'TODO') {
+        await supabase.from('tasks').update({ status: 'IN_PROGRESS', updated_at: new Date().toISOString() }).eq('id', payload.task_id);
+      }
+    }
+    
     return { error };
   } else {
     const { error } = await supabase
@@ -144,6 +156,14 @@ export async function saveTimeLogEntry(profileId: string, payload: TimeLogPayloa
         hours: payload.hours,
         status: payload.status || 'DRAFT'
       });
+      
+    if (!error && payload.task_id) {
+      const { data: taskData } = await supabase.from('tasks').select('status').eq('id', payload.task_id).single();
+      if (taskData?.status === 'TODO') {
+        await supabase.from('tasks').update({ status: 'IN_PROGRESS', updated_at: new Date().toISOString() }).eq('id', payload.task_id);
+      }
+    }
+    
     return { error };
   }
 }
@@ -165,16 +185,48 @@ export async function submitWeeklyTimesheet(profileId: string, logIds: string[])
   return { error };
 }
 
-export async function approveOrRejectTimeLog(logId: string, status: 'APPROVED' | 'REJECTED', rejectionReason: string | null, taskId: string) {
+export async function approveOrRejectTimeLog(
+  logId: string, 
+  status: 'APPROVED' | 'REJECTED', 
+  rejectionReason: string | null, 
+  taskId: string,
+  performer?: { id: string, name: string, role: string }
+) {
   const supabase = getSupabaseClient();
   if (!supabase) return { error: new Error("Supabase client not initialized") };
+
+  let is_executive_override = false;
+  let approved_by = performer?.id || null;
+
+  // Check for executive override
+  if (performer && (performer.role === 'pmo' || performer.role === 'administrator') && status === 'APPROVED') {
+    const { data: logData } = await supabase
+      .from('time_logs')
+      .select('project_id, projects!inner(pm_id)')
+      .eq('id', logId)
+      .maybeSingle();
+      
+    if (logData && logData.projects && (logData.projects as any).pm_id !== performer.id) {
+      is_executive_override = true;
+      
+      // Log audit
+      await logProjectActivity({
+        project_id: logData.project_id,
+        actor_id: performer.id,
+        module: 'TIME_LOG',
+        action_type: 'APPROVE',
+        item_label: `[EXECUTIVE OVERRIDE] Approved by PMO Executive (${performer.name}) on behalf of Assigned PM.`,
+      });
+    }
+  }
 
   const { error } = await supabase
     .from('time_logs')
     .update({ 
       status, 
       rejection_reason: rejectionReason,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      ...(status === 'APPROVED' ? { approved_by, is_executive_override } : {})
     })
     .eq('id', logId);
 

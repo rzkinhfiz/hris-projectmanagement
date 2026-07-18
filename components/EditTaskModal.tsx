@@ -12,9 +12,10 @@ interface EditTaskModalProps {
   currentUserId: string;
   onClose: () => void;
   onSuccess: () => void;
+  readOnly?: boolean;
 }
 
-export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClose, onSuccess }: EditTaskModalProps) {
+export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClose, onSuccess, readOnly = false }: EditTaskModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -30,6 +31,7 @@ export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClos
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (readOnly) return;
     const { name, value, type } = e.target;
     
     if (type === 'checkbox') {
@@ -45,6 +47,8 @@ export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClos
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (readOnly) return onClose();
+    
     setIsSubmitting(true);
     setErrorMsg(null);
 
@@ -73,14 +77,14 @@ export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClos
     }
   };
 
-  const inputClass = "w-full bg-slate-50 border border-slate-200 text-slate-800 placeholder:text-slate-400 text-sm rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[var(--color-brand-orange)] focus:border-transparent transition";
+  const inputClass = `w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 outline-none transition ${readOnly ? 'opacity-80 cursor-not-allowed' : 'placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--color-brand-orange)] focus:border-transparent'}`;
   const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-[#fcfbfa] w-full max-w-lg rounded-[2rem] shadow-xl border border-slate-100 flex flex-col my-8">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-800">Edit Task</h2>
+          <h2 className="text-xl font-bold text-slate-800">{readOnly ? 'Task Details' : 'Edit Task'}</h2>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition">
             <X size={20} />
           </button>
@@ -94,13 +98,14 @@ export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClos
           )}
 
           <div>
-            <label className={labelClass}>Task Title <span className="text-rose-500">*</span></label>
+            <label className={labelClass}>Task Title {(!readOnly) && <span className="text-rose-500">*</span>}</label>
             <input 
               type="text" 
               name="name"
-              required
+              required={!readOnly}
               value={formData.name}
               onChange={handleChange}
+              disabled={readOnly}
               className={inputClass}
               placeholder="e.g. Design Database Schema"
             />
@@ -113,6 +118,7 @@ export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClos
                 name="owner_id"
                 value={formData.owner_id || ''}
                 onChange={handleChange}
+                disabled={readOnly}
                 className={inputClass}
               >
                 <option value="">Unassigned</option>
@@ -130,6 +136,7 @@ export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClos
                 name="priority"
                 value={formData.priority}
                 onChange={handleChange}
+                disabled={readOnly}
                 className={inputClass}
               >
                 <option value="Urgent">Urgent</option>
@@ -148,6 +155,7 @@ export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClos
                 name="planned_start"
                 value={formData.planned_start || ''}
                 onChange={handleChange}
+                disabled={readOnly}
                 className={inputClass}
               />
             </div>
@@ -159,6 +167,7 @@ export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClos
                 name="planned_end"
                 value={formData.planned_end || ''}
                 onChange={handleChange}
+                disabled={readOnly}
                 className={inputClass}
               />
             </div>
@@ -173,6 +182,7 @@ export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClos
                 min="0"
                 value={formData.estimated_hours}
                 onChange={handleChange}
+                disabled={readOnly}
                 className={inputClass}
               />
             </div>
@@ -185,6 +195,7 @@ export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClos
                 min="0"
                 value={formData.actual_hours}
                 onChange={handleChange}
+                disabled={readOnly}
                 className={inputClass}
               />
             </div>
@@ -197,34 +208,47 @@ export function EditTaskModal({ task, projectTeamProfiles, currentUserId, onClos
               name="is_milestone"
               checked={formData.is_milestone}
               onChange={handleChange}
-              className="w-5 h-5 accent-[var(--color-brand-orange)] rounded cursor-pointer"
+              disabled={readOnly}
+              className={`w-5 h-5 accent-[var(--color-brand-orange)] rounded ${readOnly ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
             />
-            <label htmlFor="is_milestone" className="text-sm font-bold text-slate-700 cursor-pointer select-none">
+            <label htmlFor="is_milestone" className={`text-sm font-bold text-slate-700 select-none ${readOnly ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
               Mark as Milestone
             </label>
           </div>
 
           <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
-            <button 
-              type="button" 
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit"
-              disabled={isSubmitting}
-              className="px-5 py-2.5 bg-[var(--color-brand-orange)] hover:bg-orange-600 text-white text-sm font-semibold rounded-xl shadow-md transition flex items-center gap-2"
-            >
-              {isSubmitting ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Check size={16} />
-              )}
-              Save Changes
-            </button>
+            {readOnly ? (
+              <button 
+                type="button" 
+                onClick={onClose}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl shadow-sm transition flex items-center gap-2"
+              >
+                Close
+              </button>
+            ) : (
+              <>
+                <button 
+                  type="button" 
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 bg-[var(--color-brand-orange)] hover:bg-orange-600 text-white text-sm font-semibold rounded-xl shadow-md transition flex items-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Check size={16} />
+                  )}
+                  Save Changes
+                </button>
+              </>
+            )}
           </div>
         </form>
       </div>

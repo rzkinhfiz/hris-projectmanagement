@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { Project } from "@/types";
 import { RevenueTab } from "./tabs/RevenueTab";
 import { BudgetTab } from "./tabs/BudgetTab";
@@ -26,7 +27,9 @@ interface ProjectTabsProps {
 }
 
 export function ProjectTabs({ project }: ProjectTabsProps) {
-  const [activeTab, setActiveTab] = useState("overview");
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get("taskId") ? "tasks" : "overview";
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const { profile } = useAuth();
 
   const tabs = [

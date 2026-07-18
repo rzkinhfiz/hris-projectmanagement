@@ -136,6 +136,18 @@ export interface ResourceAllocation {
   user_id: string;
   functional_role: string;
   workload_share: string | null;
+  is_active?: boolean;
+  end_date?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FunctionalRole {
+  id: string;
+  name: string;
+  department: string | null;
+  default_hourly_rate: number;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -163,6 +175,8 @@ export interface IssueAction {
   due_date: string | null;
   severity: string;
   status: string;
+  approved_by?: string | null;
+  is_executive_override?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -212,8 +226,8 @@ export interface ProjectIssueAndAction {
   updated_at: string;
 }
 
-export type ActivityModule = 'METADATA' | 'BUDGET' | 'RESOURCE_LOAD' | 'RAID_LOG' | 'TASKS' | 'TERMS_REVENUE';
-export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE';
+export type ActivityModule = 'METADATA' | 'BUDGET' | 'RESOURCE_LOAD' | 'RAID_LOG' | 'TASKS' | 'TERMS_REVENUE' | 'TIME_LOG' | 'PROJECTS';
+export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE' | 'APPROVE';
 
 export interface ProjectActivityLog {
   id: string;
@@ -251,11 +265,13 @@ export interface TimeLog {
   rejection_reason: string | null;
   proposed_hours: number | null;
   negotiation_notes: string | null;
+  approved_by?: string | null;
+  is_executive_override?: boolean;
   created_at: string;
   updated_at: string;
   
   // Optional relations
-  project?: { name: string, code: string };
+  project?: { name: string, code: string, pm_id?: string };
   task?: { name: string };
   profile?: { full_name: string, role: string, status?: string };
 }

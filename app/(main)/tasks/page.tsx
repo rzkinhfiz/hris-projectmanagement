@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { CheckSquare, Search, Calendar, MoreHorizontal, List, Kanban, Check, Trash2, Pencil, Flag, Filter } from "lucide-react";
+import Link from "next/link";
+import { CheckSquare, Search, Calendar, MoreHorizontal, List, Kanban, Check, Trash2, Pencil, Flag, Filter, ArrowUpRight } from "lucide-react";
 import { getAllTasks, updateTaskStatus, deleteTask } from "@/services/taskService";
 import { createClient } from "@/utils/supabase/client";
 import type { TaskWithWorkstream } from "@/services/taskService";
@@ -311,10 +312,13 @@ export default function TasksPage() {
                           )}
                           
                           <div className="flex items-start justify-between mb-3">
-                            <div className="flex flex-col gap-1.5">
-                               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <div className="flex flex-col gap-1.5 items-start">
+                               <Link 
+                                 href={`/projects/${task.project_id}`}
+                                 className="text-amber-800 hover:text-amber-900 bg-orange-50 hover:bg-orange-100 font-medium px-2.5 py-1 rounded-full transition-colors inline-flex items-center gap-1 text-[10px] uppercase tracking-wider"
+                               >
                                  {projects[task.project_id]?.name || "Unknown Project"}
-                               </span>
+                               </Link>
                                <div className="flex items-center gap-2 flex-wrap">
                                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${getPriorityColor(task.priority)}`}>
                                    {task.priority}
@@ -357,9 +361,17 @@ export default function TasksPage() {
                               <Calendar size={14} className="text-slate-400" />
                               {task.planned_end ? new Date(task.planned_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'No Due'}
                             </div>
-                            
-                            <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold border border-slate-200 shadow-sm" title={ownerName}>
-                              {getInitials(ownerName)}
+                            <div className="flex gap-2 items-center">
+                              <Link
+                                href={`/projects/${task.project_id}?taskId=${task.id}`}
+                                className="rounded-xl border border-stone-200 hover:bg-stone-50 text-stone-600 p-1.5 flex items-center justify-center transition-colors"
+                                title="Buka Detail di Proyek"
+                              >
+                                <ArrowUpRight size={14} />
+                              </Link>
+                              <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs font-bold border border-slate-200 shadow-sm" title={ownerName}>
+                                {getInitials(ownerName)}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -404,9 +416,13 @@ export default function TasksPage() {
                     return (
                     <tr key={task.id} className="hover:bg-slate-50/50 transition">
                       <td className="p-4">
-                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider max-w-[120px] truncate" title={projects[task.project_id]?.name || "Unknown Project"}>
+                        <Link 
+                          href={`/projects/${task.project_id}`}
+                          className="text-amber-800 hover:text-amber-900 bg-orange-50 hover:bg-orange-100 font-medium px-2.5 py-1 rounded-full transition-colors inline-flex items-center gap-1 text-[10px] uppercase tracking-wider max-w-[120px] truncate"
+                          title={projects[task.project_id]?.name || "Unknown Project"}
+                        >
                            {projects[task.project_id]?.name || "Unknown Project"}
-                        </div>
+                        </Link>
                       </td>
                       <td className="p-4">
                         <div className="font-bold text-sm text-slate-800 flex items-center gap-2 max-w-[200px] truncate" title={task.name}>
@@ -462,14 +478,23 @@ export default function TasksPage() {
                         />
                       </td>
                       <td className="p-4">
-                        <RoleGuard currentRole={currentUser?.role || ''} allowed={["administrator", "pmo", "project_manager"]}>
-                          {canManageTask && (
-                            <ActionMenu 
-                              onEdit={() => { alert("Global edit not implemented yet. Please edit within the project context."); }}
-                              onDelete={() => handleDeleteTask(task.id)}
-                            />
-                          )}
-                        </RoleGuard>
+                        <div className="flex items-center gap-1">
+                          <Link
+                            href={`/projects/${task.project_id}?taskId=${task.id}`}
+                            className="rounded-xl border border-stone-200 hover:bg-stone-50 text-stone-600 p-1.5 flex items-center justify-center transition-colors"
+                            title="Buka Detail di Proyek"
+                          >
+                            <ArrowUpRight size={14} />
+                          </Link>
+                          <RoleGuard currentRole={currentUser?.role || ''} allowed={["administrator", "pmo", "project_manager"]}>
+                            {canManageTask && (
+                              <ActionMenu 
+                                onEdit={() => { alert("Global edit not implemented yet. Please edit within the project context."); }}
+                                onDelete={() => handleDeleteTask(task.id)}
+                              />
+                            )}
+                          </RoleGuard>
+                        </div>
                       </td>
                     </tr>
                   )})}

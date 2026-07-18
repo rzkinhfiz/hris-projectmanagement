@@ -264,3 +264,50 @@ export async function deleteTask(
   return { error: null };
 }
 
+export async function approveTask(
+  taskId: string, 
+  performer: { id: string, name: string, role: string }
+) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return { error: { message: "Supabase client is unavailable.", code: "500", details: "", hint: "" } };
+
+  let is_executive_override = false;
+  let approved_by = performer.id;
+
+  const { data: taskData } = await supabase
+    .from('tasks')
+    .select('project_id, projects!inner(pm_id)')
+    .eq('id', taskId)
+    .maybeSingle();
+
+  if (!taskData) return { error: { message: "Task not found" } };
+
+  // Check for executive override
+  if ((performer.role === 'pmo' || performer.role === 'administrator')) {
+    if (taskData.projects && (taskData.projects as any).pm_id !== performer.id) {
+      is_executive_override = true;
+      
+      // Log audit
+      await logProjectActivity({
+        project_id: taskData.project_id,
+        actor_id: performer.id,
+        module: 'TASKS',
+        action_type: 'APPROVE',
+        item_label: `[EXECUTIVE OVERRIDE] Approved by PMO Executive (${performer.name}) on behalf of Assigned PM.`,
+      });
+    }
+  }
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ 
+      status: 'DONE', 
+      updated_at: new Date().toISOString(),
+      approved_by,
+      is_executive_override
+    })
+    .eq('id', taskId);
+
+  return { error };
+}
+
