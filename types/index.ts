@@ -22,6 +22,8 @@ export interface ProjectMetadataPayload {
   contract_value_excl_tax: number;
   start_date: string;
   end_date: string;
+  internal_drive_url?: string;
+  external_drive_url?: string;
 }
 
 export interface Project {
