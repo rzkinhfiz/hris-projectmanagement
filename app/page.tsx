@@ -69,7 +69,7 @@ export default function Page() {
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none ring-0 transition focus:border-amber-400"
+              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none ring-0 transition focus:border-amber-400 placeholder:text-slate-400"
               placeholder="name@company.com"
             />
           </div>
@@ -84,7 +84,7 @@ export default function Page() {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none ring-0 transition focus:border-amber-400"
+              className="w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm outline-none ring-0 transition focus:border-amber-400 placeholder:text-slate-400"
               placeholder="Enter your password"
             />
           </div>
